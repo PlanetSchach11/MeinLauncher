@@ -1,0 +1,57 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:MeinLauncher.ViewModels"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="940" d:DesignHeight="700"
+             x:Class="MeinLauncher.Views.Settings.AccountSettingsView"
+             x:DataType="vm:SettingsViewModel">
+
+    <ScrollViewer>
+        <WrapPanel ItemSpacing="16">
+
+            <!-- Microsoft-Konto -->
+            <Border Classes="card" Padding="26" MinWidth="360" MaxWidth="430">
+                <StackPanel Spacing="10">
+
+                    <TextBlock Text="{Binding L.SettingsMicrosoftAccount}" Classes="section" />
+
+                    <TextBlock Text="{Binding L.SettingsMicrosoftClientId}" Classes="fieldlabel" Margin="0,6,0,0"
+                               TextWrapping="Wrap" />
+                    <TextBox Text="{Binding MicrosoftClientId}"
+                             PlaceholderText="{Binding L.SettingsMicrosoftClientIdPlaceholder}"
+                             MinWidth="240" IsEnabled="{Binding !IsMicrosoftBusy}" />
+
+                    <TextBlock Text="{Binding L.SettingsMicrosoftAccountHint}" Classes="subtle" FontSize="12"
+                               TextWrapping="Wrap" />
+
+                    <!-- Status und Fortschritt während des Logins -->
+                    <TextBlock Text="{Binding MicrosoftStatus}" Classes="subtle" TextWrapping="Wrap"
+                               IsVisible="{Binding !IsMicrosoftLoggedIn}" />
+                    <ProgressBar IsIndeterminate="True" Height="4" MaxWidth="280"
+                                 HorizontalAlignment="Left"
+                                 IsVisible="{Binding IsMicrosoftBusy}" />
+
+                    <!-- Angemeldetes Spielerprofil -->
+                    <StackPanel Orientation="Horizontal" Spacing="14" IsVisible="{Binding IsMicrosoftLoggedIn}">
+                        <Border Width="64" Height="64" CornerRadius="8" ClipToBounds="True"
+                                Background="{DynamicResource SystemControlBackgroundBaseLowBrush}">
+                            <Image Source="{Binding MicrosoftProfileImage}" Stretch="Uniform"
+                                   RenderOptions.BitmapInterpolationMode="None" />
+                        </Border>
+                        <StackPanel Spacing="2" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding MicrosoftUsername}" FontWeight="SemiBold" />
+                            <TextBlock Text="{Binding MicrosoftStatus}" Classes="subtle"
+                                       TextWrapping="Wrap" />
+                        </StackPanel>
+                    </StackPanel>
+
+                    <Button Classes="primary" Content="{Binding L.SettingsMicrosoftLoginButton}"
+                            Command="{Binding LoginMicrosoftCommand}"
+                            IsEnabled="{Binding !IsMicrosoftBusy}"
+                            HorizontalAlignment="Left" Margin="0,6,0,0" />
+                </StackPanel>
+            </Border>
+        </WrapPanel>
+    </ScrollViewer>
+</UserControl>

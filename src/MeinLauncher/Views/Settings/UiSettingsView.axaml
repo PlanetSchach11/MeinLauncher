@@ -1,0 +1,72 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:MeinLauncher.ViewModels"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="940" d:DesignHeight="700"
+             x:Class="MeinLauncher.Views.Settings.UiSettingsView"
+             x:DataType="vm:SettingsViewModel">
+
+    <ScrollViewer>
+        <WrapPanel ItemSpacing="16">
+
+            <!-- Sprache & Sounds -->
+            <Border Classes="card" Padding="26" MinWidth="360" MaxWidth="430">
+                <StackPanel Spacing="10">
+
+                    <TextBlock Text="{Binding L.SettingsLanguage}" Classes="section" />
+
+                    <TextBlock Text="{Binding L.SettingsLanguage}" Classes="fieldlabel" Margin="0,6,0,0" />
+                    <ComboBox ItemsSource="{Binding LanguageOptions}" SelectedItem="{Binding SelectedLanguageItem}"
+                              MinWidth="180" HorizontalAlignment="Left">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:LocalizedItem">
+                                <TextBlock Text="{Binding Text}" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+
+                    <TextBlock Text="{Binding L.SettingsSound}" Classes="section" />
+
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14">
+                        <ToggleSwitch x:Name="UiSoundToggle" IsChecked="{Binding SoundEnabled}"
+                                      VerticalAlignment="Center" />
+                        <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding L.SettingsSoundHint}" Classes="subtle" FontSize="12"
+                                       TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Grid>
+
+                    <StackPanel Spacing="6" IsVisible="{Binding SoundEnabled}">
+                        <TextBlock Text="{Binding L.SettingsSoundVolume}" Classes="fieldlabel" Margin="0,4,0,0" />
+                        <Grid RowDefinitions="Auto,Auto" RowSpacing="4">
+                            <TextBlock Text="{Binding SoundVolumeLabel}" MinWidth="60" HorizontalAlignment="Right"
+                                       FontWeight="SemiBold" />
+                            <Slider Grid.Row="1" Minimum="0" Maximum="100" TickFrequency="5"
+                                    IsSnapToTickEnabled="True" Value="{Binding SoundVolume}" />
+                        </Grid>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- Skins & Capes -->
+            <Border Classes="card" Padding="26" MinWidth="360" MaxWidth="430">
+                <StackPanel Spacing="10">
+
+                    <TextBlock Text="{Binding L.SettingsSkinCapes}" Classes="section" />
+
+                    <TextBlock Text="{Binding L.SettingsSkinCapesHint}" Classes="subtle" FontSize="12"
+                               TextWrapping="Wrap" />
+
+                    <WrapPanel ItemSpacing="10">
+                        <Button Classes="ghost" Command="{Binding RefreshSkinsCommand}"
+                                Content="{Binding L.SettingsSkinCapesRefresh}" />
+                    </WrapPanel>
+
+                    <TextBlock Text="{Binding SkinCapeStatus}" Classes="subtle" FontSize="12"
+                               TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
+        </WrapPanel>
+    </ScrollViewer>
+</UserControl>

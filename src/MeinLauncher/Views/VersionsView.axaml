@@ -1,0 +1,85 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:MeinLauncher.ViewModels"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="940" d:DesignHeight="700"
+             x:Class="MeinLauncher.Views.VersionsView"
+             x:DataType="vm:VersionsViewModel">
+
+    <Grid RowDefinitions="Auto,Auto,Auto,*" Margin="32" RowSpacing="14">
+
+        <!-- Status (Titel liefert die Profil-Seite) -->
+        <TextBlock Grid.Row="0" Text="{Binding StatusMessage}" Classes="subtle" TextWrapping="Wrap" />
+
+        <!-- Werkzeugleiste (zwei Zeilen, damit nichts bei schmalen Fenstern abgeschnitten wird) -->
+        <StackPanel Grid.Row="1" Spacing="10">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                <TextBox Text="{Binding SearchText}" PlaceholderText="{Binding L.VersionsSearchPlaceholder}"
+                         MinWidth="180" />
+                <ComboBox Grid.Column="1" ItemsSource="{Binding Filters}" SelectedItem="{Binding Filter}"
+                          MinWidth="130">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding Converter={StaticResource Loc}}" />
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+            </Grid>
+            <WrapPanel ItemSpacing="10">
+                <Button Classes="ghost" Command="{Binding RefreshCommand}" Content="{Binding L.VersionsRefresh}" />
+                <Button Classes="primary" Command="{Binding InstallCommand}" Content="{Binding L.VersionsInstall}"
+                        MinWidth="120" />
+            </WrapPanel>
+        </StackPanel>
+
+        <!-- Fortschritt -->
+        <StackPanel Grid.Row="2" Spacing="6" IsVisible="{Binding IsBusy}">
+            <ProgressBar IsIndeterminate="{Binding IsLoading}"
+                         Minimum="0" Maximum="1" Value="{Binding InstallProgress}" />
+            <TextBlock Text="{Binding StatusMessage}" Classes="subtle" FontSize="12"
+                       TextWrapping="Wrap" />
+        </StackPanel>
+
+        <!-- Liste -->
+        <Border Grid.Row="3" Classes="card" Padding="10">
+            <ListBox Classes="versions"
+                     ItemsSource="{Binding Versions}"
+                     SelectedItem="{Binding SelectedVersion}">
+                <ListBox.ItemTemplate>
+                    <DataTemplate x:DataType="vm:VersionItem">
+                        <Grid ColumnDefinitions="*,Auto" Margin="8,6" ColumnSpacing="14">
+                            <StackPanel Grid.Column="0" Spacing="4">
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                                    <TextBlock Text="{Binding Id}" FontSize="16" FontWeight="SemiBold"
+                                               TextTrimming="CharacterEllipsis" />
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10">
+                                        <Border Classes="badge release" IsVisible="{Binding IsRelease}">
+                                            <TextBlock Text="{Binding L.VersionsRelease}" />
+                                        </Border>
+                                        <Border Classes="badge snapshot" IsVisible="{Binding !IsRelease}">
+                                            <TextBlock Text="{Binding L.VersionsSnapshot}" />
+                                        </Border>
+                                    </StackPanel>
+                                </Grid>
+                                <TextBlock Text="{Binding ReleaseDateLabel}" FontSize="12" Classes="subtle" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10"
+                                        VerticalAlignment="Center">
+                                <Border Classes="badge release" IsVisible="{Binding IsInstalled}">
+                                    <TextBlock Text="{Binding L.VersionsInstalled}" />
+                                </Border>
+                                <Border Classes="badge" IsVisible="{Binding IsDefault}"
+                                        Background="{DynamicResource AccentSoft}"
+                                        BorderBrush="{DynamicResource Accent}">
+                                    <TextBlock Text="{Binding L.VersionsDefault}"
+                                               Foreground="{DynamicResource Accent}" FontSize="11" />
+                                </Border>
+                            </StackPanel>
+                        </Grid>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </Border>
+    </Grid>
+</UserControl>

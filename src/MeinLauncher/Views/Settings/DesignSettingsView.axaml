@@ -1,0 +1,79 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:MeinLauncher.ViewModels"
+             xmlns:views="using:MeinLauncher.Views"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="940" d:DesignHeight="700"
+             x:Class="MeinLauncher.Views.Settings.DesignSettingsView"
+             x:DataType="vm:SettingsViewModel">
+
+    <ScrollViewer>
+        <WrapPanel ItemSpacing="16">
+
+            <!-- Design: Theme, Akzent, Transparenz -->
+            <Border Classes="card" Padding="26" MinWidth="360" MaxWidth="430">
+                <StackPanel Spacing="10">
+
+                    <TextBlock Text="{Binding L.SettingsDesign}" Classes="section" />
+
+                    <TextBlock Text="{Binding L.SettingsTheme}" Classes="fieldlabel" Margin="0,6,0,0" />
+                    <ComboBox ItemsSource="{Binding ThemeOptions}" SelectedItem="{Binding SelectedThemeItem}"
+                              MinWidth="180" HorizontalAlignment="Left">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:LocalizedItem">
+                                <TextBlock Text="{Binding Text}" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+
+                    <TextBlock Text="{Binding L.SettingsAccent}" Classes="fieldlabel" Margin="0,6,0,0" />
+                    <StackPanel Spacing="8">
+                        <ItemsControl ItemsSource="{Binding AccentOptions}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:AccentItem">
+                                    <!-- Dünne weiße Outline: macht besonders "Schwarz" auf dunklem
+                                         Hintergrund sichtbar. Der Auswahlring liegt 1 px versetzt innen,
+                                         damit die Outline auch bei der aktiven Farbe erhalten bleibt. -->
+                                    <Button Width="32" Height="32" Padding="0" Margin="0,0,10,10"
+                                            CornerRadius="8" BorderThickness="1"
+                                            BorderBrush="White"
+                                            Background="{Binding ColorBrush}"
+                                            ToolTip.Tip="{Binding Name}"
+                                            Click="OnAccentClick" Tag="{Binding}">
+                                        <Border Width="30" Height="30" CornerRadius="7"
+                                                BorderBrush="{DynamicResource TextOnAccent}"
+                                                BorderThickness="2.5"
+                                                IsVisible="{Binding IsSelected}" />
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <TextBlock Text="{Binding SelectedAccentItem.Name}" Classes="subtle" FontSize="12"
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
+
+                    <TextBlock Text="{Binding L.SettingsTransparency}" Classes="fieldlabel" Margin="0,6,0,0" />
+                    <ComboBox ItemsSource="{Binding TransparencyOptions}"
+                              SelectedItem="{Binding SelectedTransparencyItem}"
+                              MinWidth="180" HorizontalAlignment="Left">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:LocalizedItem">
+                                <TextBlock Text="{Binding Text}" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                </StackPanel>
+            </Border>
+
+            <!-- Hintergrund (Bild + dekorativer Editor) -->
+            <views:BackgroundSettingsView DataContext="{Binding BackgroundSettings}"
+                                          MinWidth="360" MaxWidth="430" />
+        </WrapPanel>
+    </ScrollViewer>
+</UserControl>

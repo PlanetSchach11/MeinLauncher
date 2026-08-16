@@ -1,0 +1,93 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:MeinLauncher.ViewModels"
+        xmlns:controls="using:MeinLauncher.Controls"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="1180" d:DesignHeight="740"
+        x:Class="MeinLauncher.Views.MainWindow"
+        x:DataType="vm:MainViewModel"
+         Icon="/Assets/meinlauncher.ico"
+         Title="Pickle Launcher"
+        Width="1180" Height="740"
+        MinWidth="960" MinHeight="620"
+        WindowStartupLocation="CenterScreen"
+        Background="Transparent">
+
+    <Grid ColumnDefinitions="240,*" Background="{DynamicResource BgWindow}">
+
+        <!-- Hintergrund-Ebenen (unterste Ebene, nie klickbar, nie über UI) -->
+
+        <!-- Eigenes Hintergrundbild -->
+        <Image Grid.ColumnSpan="2" Source="{Binding BackgroundImage}" Stretch="UniformToFill"
+               Opacity="{Binding BackgroundOpacity}"
+               IsVisible="{Binding IsImageVisible}" />
+
+        <!-- Lesbarkeits-Tönung über dem Hintergrundbild -->
+        <Border Grid.ColumnSpan="2" Background="{DynamicResource BgWindow}"
+                Opacity="0.55" IsVisible="{Binding IsImageVisible}" />
+
+        <!-- Dekorative, animierte Elemente (Schachfiguren, Kreise, Partikel …) -->
+        <controls:BackgroundRenderer Grid.ColumnSpan="2"
+                                     Config="{Binding BackgroundConfig}"
+                                     IsVisible="{Binding IsBackgroundDecorVisible}" />
+
+        <!-- Seitenleiste -->
+        <Border Grid.Column="0" Background="{DynamicResource BgSidebar}"
+                BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="0,0,1,0">
+            <DockPanel>
+
+                <!-- Branding -->
+                <StackPanel DockPanel.Dock="Top" Margin="20,24,20,20" Spacing="12">
+                    <Border Width="48" Height="48" CornerRadius="12"
+                            Background="{DynamicResource Accent}"
+                            HorizontalAlignment="Left">
+                        <TextBlock Text="PL" FontSize="22" FontWeight="Bold"
+                                   Foreground="{DynamicResource TextOnAccent}"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <StackPanel Spacing="2">
+                        <TextBlock Text="Pickle Launcher" FontSize="22" FontWeight="Bold"
+                                   TextTrimming="CharacterEllipsis" />
+                        <TextBlock Text="{Binding L.BrandingSubtitle}" FontSize="12" Classes="subtle"
+                                   TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Fußzeile -->
+                <StackPanel DockPanel.Dock="Bottom" Margin="20,12" Spacing="3">
+                    <TextBlock Text="Pickle Launcher v0.1.0" FontSize="12" Classes="subtle" />
+                    <TextBlock Text="{Binding L.BrandingPrototype}" FontSize="12" Classes="subtle" />
+                </StackPanel>
+
+                <!-- Navigation (letztes Kind → füllt restlichen Platz) -->
+                <ListBox Classes="sidebar" x:Name="SidebarList"
+                         ItemsSource="{Binding NavItems}"
+                         SelectedItem="{Binding SelectedNavItem}"
+                         Background="Transparent">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="vm:NavItem">
+                            <Grid ColumnDefinitions="32,*,Auto" Height="44">
+                                <Path Data="{Binding Glyph}" Width="20" Height="20"
+                                      Stretch="Uniform" VerticalAlignment="Center"
+                                      HorizontalAlignment="Center" />
+                                <TextBlock Grid.Column="1" Text="{Binding Title}"
+                                           VerticalAlignment="Center"
+                                           TextTrimming="CharacterEllipsis" />
+                                <!-- Roter Punkt: neue ungelesene News -->
+                                <Ellipse Grid.Column="2" Width="9" Height="9" Margin="0,0,4,0"
+                                         HorizontalAlignment="Right" VerticalAlignment="Center"
+                                         Fill="{DynamicResource Danger}"
+                                         Stroke="{DynamicResource BgSidebar}" StrokeThickness="1.5"
+                                         IsVisible="{Binding HasUnread}" />
+                            </Grid>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </DockPanel>
+        </Border>
+
+        <!-- Inhalt -->
+        <ContentControl Grid.Column="1" Content="{Binding CurrentPage}" />
+    </Grid>
+</Window>

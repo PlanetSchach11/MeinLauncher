@@ -1,0 +1,52 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:MeinLauncher.ViewModels"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="940" d:DesignHeight="700"
+             x:Class="MeinLauncher.Views.Settings.ModsSettingsView"
+             x:DataType="vm:SettingsViewModel">
+
+    <ScrollViewer>
+        <WrapPanel ItemSpacing="16">
+
+            <!-- Mod-Loader -->
+            <Border Classes="card" Padding="26" MinWidth="360" MaxWidth="430">
+                <StackPanel Spacing="10">
+
+                    <TextBlock Text="{Binding L.SettingsModsLoader}" Classes="section" />
+
+                    <TextBlock Text="{Binding L.SettingsModsLoaderHint}" Classes="fieldlabel" Margin="0,6,0,0"
+                               TextWrapping="Wrap" />
+                    <ComboBox ItemsSource="{Binding LoaderOptions}"
+                              SelectedItem="{Binding SelectedLoaderOption}"
+                              MinWidth="180" HorizontalAlignment="Left">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:ModLoaderItem">
+                                <TextBlock Text="{Binding Text}" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                </StackPanel>
+            </Border>
+
+            <!-- Mods-Ordner -->
+            <Border Classes="card" Padding="26" MinWidth="360" MaxWidth="430">
+                <StackPanel Spacing="10">
+
+                    <TextBlock Text="{Binding L.SettingsModsFolder}" Classes="section" />
+
+                    <TextBlock Text="{Binding L.SettingsModsFolderHint}" Classes="subtle" FontSize="12"
+                               TextWrapping="Wrap" />
+
+                    <TextBox Text="{Binding ModsFolderPath}" IsReadOnly="True" MinWidth="240" />
+
+                    <WrapPanel ItemSpacing="10">
+                        <Button Classes="ghost" Content="{Binding L.SettingsOpenExplorer}"
+                                Click="OnOpenModsFolderClick" />
+                    </WrapPanel>
+                </StackPanel>
+            </Border>
+        </WrapPanel>
+    </ScrollViewer>
+</UserControl>

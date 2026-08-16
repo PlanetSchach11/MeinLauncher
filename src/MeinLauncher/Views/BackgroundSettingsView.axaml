@@ -1,0 +1,221 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:MeinLauncher.ViewModels"
+             xmlns:controls="using:MeinLauncher.Controls"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="700"
+             x:Class="MeinLauncher.Views.BackgroundSettingsView"
+             x:DataType="vm:BackgroundSettingsViewModel">
+
+    <Border Classes="card" Padding="26">
+        <StackPanel Spacing="10">
+
+            <TextBlock Text="{Binding L.SettingsBackground}" Classes="section" />
+
+            <!-- Gesamtschalter -->
+            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14">
+                <ToggleSwitch IsChecked="{Binding Enabled}" VerticalAlignment="Center" />
+                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding L.BackgroundEnabled}" FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding L.BackgroundEnabledHint}" Classes="subtle" FontSize="12"
+                               TextWrapping="Wrap" />
+                </StackPanel>
+            </Grid>
+
+            <!-- Live-Vorschau -->
+            <Border Classes="card" Padding="10" Height="170" ClipToBounds="True" Margin="0,4,0,0">
+                <Grid>
+                    <controls:BackgroundRenderer Config="{Binding Config}" />
+                    <StackPanel IsVisible="{Binding !Enabled}" HorizontalAlignment="Center"
+                                VerticalAlignment="Center" Spacing="2">
+                        <TextBlock Text="{Binding L.BackgroundPreviewOff}" Classes="subtle" FontSize="12" />
+                    </StackPanel>
+                    <TextBlock Text="{Binding L.BackgroundPreview}" Classes="subtle" FontSize="11"
+                               Margin="10" VerticalAlignment="Top" />
+                </Grid>
+            </Border>
+
+            <!-- Hintergrundbild -->
+            <Expander Header="{Binding L.BackgroundImage}" IsExpanded="False"
+                      HorizontalAlignment="Stretch">
+                <StackPanel Spacing="8" Margin="0,8,0,0">
+                    <TextBlock Text="{Binding L.BackgroundImageHint}" Classes="subtle" FontSize="12"
+                               TextWrapping="Wrap" />
+                    <WrapPanel ItemSpacing="10">
+                        <Button Classes="ghost" Content="{Binding L.SettingsBackgroundChoose}"
+                                Click="OnChooseImageClick" />
+                        <Button Classes="danger" Content="{Binding L.SettingsBackgroundReset}"
+                                Click="OnResetImageClick" />
+                    </WrapPanel>
+                    <TextBlock Text="{Binding ImageName}" Classes="subtle" FontSize="12" TextWrapping="Wrap" />
+                </StackPanel>
+            </Expander>
+
+            <!-- Elemente -->
+            <Expander Header="{Binding L.BackgroundElements}" IsExpanded="True"
+                      HorizontalAlignment="Stretch">
+                <StackPanel Spacing="10" Margin="0,8,0,0">
+
+                    <TextBlock Text="{Binding L.BackgroundKind}" Classes="fieldlabel" Margin="0,4,0,0" />
+                    <ItemsControl ItemsSource="{Binding Kinds}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel ItemSpacing="8" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:BackgroundKindItem">
+                                <ToggleButton IsChecked="{Binding IsSelected}" Content="{Binding Name}"
+                                              Margin="0,0,0,8" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <TextBlock Text="{Binding L.BackgroundColor}" Classes="fieldlabel" Margin="0,4,0,0" />
+                    <ItemsControl ItemsSource="{Binding ColorOptions}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:BackgroundColorItem">
+                                <Button Width="30" Height="30" Padding="0" Margin="0,0,8,8"
+                                        CornerRadius="7" BorderThickness="1"
+                                        BorderBrush="White"
+                                        Background="{Binding ColorBrush}"
+                                        ToolTip.Tip="{Binding Name}"
+                                        Click="OnColorClick" Tag="{Binding}">
+                                    <Border Width="28" Height="28" CornerRadius="6"
+                                            BorderBrush="{DynamicResource TextOnAccent}"
+                                            BorderThickness="2.5"
+                                            IsVisible="{Binding IsSelected}" />
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <!-- Regler: Beschriftung oben, Regler darunter in voller Breite –
+                         klare Trennung, kein Überlappen bei langen Texten. -->
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="24">
+                        <!-- Linke Spalte -->
+                        <StackPanel Spacing="14">
+                            <StackPanel Spacing="6">
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                    <TextBlock Text="{Binding L.BackgroundCount}" Classes="subtle" FontSize="12"
+                                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="1" Text="{Binding CountLabel}" FontWeight="SemiBold"
+                                               FontSize="12" VerticalAlignment="Center" />
+                                </Grid>
+                                <Slider Minimum="1" Maximum="200" Value="{Binding Count}" />
+                            </StackPanel>
+
+                            <StackPanel Spacing="6">
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                    <TextBlock Text="{Binding L.BackgroundSize}" Classes="subtle" FontSize="12"
+                                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="1" Text="{Binding SizeLabel}" FontWeight="SemiBold"
+                                               FontSize="12" VerticalAlignment="Center" />
+                                </Grid>
+                                <Slider Minimum="4" Maximum="120" Value="{Binding Size}" />
+                            </StackPanel>
+
+                            <StackPanel Spacing="6">
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                    <TextBlock Text="{Binding L.BackgroundOpacity}" Classes="subtle" FontSize="12"
+                                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="1" Text="{Binding OpacityLabel}" FontWeight="SemiBold"
+                                               FontSize="12" VerticalAlignment="Center" />
+                                </Grid>
+                                <Slider Minimum="0" Maximum="1" Value="{Binding Opacity}" />
+                            </StackPanel>
+                        </StackPanel>
+
+                        <!-- Rechte Spalte -->
+                        <StackPanel Grid.Column="1" Spacing="14">
+                            <StackPanel Spacing="6">
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                    <TextBlock Text="{Binding L.BackgroundDensity}" Classes="subtle" FontSize="12"
+                                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="1" Text="{Binding DensityLabel}" FontWeight="SemiBold"
+                                               FontSize="12" VerticalAlignment="Center" />
+                                </Grid>
+                                <Slider Minimum="0.05" Maximum="1" Value="{Binding Density}" />
+                            </StackPanel>
+
+                            <StackPanel Spacing="6">
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                    <TextBlock Text="{Binding L.BackgroundSpacing}" Classes="subtle" FontSize="12"
+                                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="1" Text="{Binding SpacingLabel}" FontWeight="SemiBold"
+                                               FontSize="12" VerticalAlignment="Center" />
+                                </Grid>
+                                <Slider Minimum="0" Maximum="1" Value="{Binding Spacing}" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </Expander>
+
+            <!-- Animation -->
+            <Expander Header="{Binding L.BackgroundAnimation}" IsExpanded="False"
+                      HorizontalAlignment="Stretch">
+                <StackPanel Spacing="10" Margin="0,8,0,0">
+
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14">
+                        <ToggleSwitch IsChecked="{Binding Animate}" VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="1" Text="{Binding L.BackgroundAnimate}" Classes="subtle"
+                                   FontSize="12" VerticalAlignment="Center" TextWrapping="Wrap" />
+                    </Grid>
+
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="24">
+                        <StackPanel Spacing="14">
+                            <StackPanel Spacing="6">
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                    <TextBlock Text="{Binding L.BackgroundSpeed}" Classes="subtle" FontSize="12"
+                                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="1" Text="{Binding SpeedLabel}" FontWeight="SemiBold"
+                                               FontSize="12" VerticalAlignment="Center" />
+                                </Grid>
+                                <Slider Minimum="0" Maximum="5" Value="{Binding Speed}" />
+                            </StackPanel>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1" Spacing="14">
+                            <StackPanel Spacing="6">
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                    <TextBlock Text="{Binding L.BackgroundIntensity}" Classes="subtle" FontSize="12"
+                                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="1" Text="{Binding IntensityLabel}" FontWeight="SemiBold"
+                                               FontSize="12" VerticalAlignment="Center" />
+                                </Grid>
+                                <Slider Minimum="0" Maximum="1" Value="{Binding Intensity}" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Grid>
+
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14">
+                        <ToggleSwitch IsChecked="{Binding Rotate}" VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="1" Text="{Binding L.BackgroundRotate}" Classes="subtle"
+                                   FontSize="12" VerticalAlignment="Center" TextWrapping="Wrap" />
+                    </Grid>
+
+                    <StackPanel Spacing="6" IsVisible="{Binding Rotate}">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                            <TextBlock Text="{Binding L.BackgroundRotationSpeed}" Classes="subtle" FontSize="12"
+                                       TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="1" Text="{Binding RotationSpeedLabel}" FontWeight="SemiBold"
+                                       FontSize="12" VerticalAlignment="Center" />
+                        </Grid>
+                        <Slider Minimum="0" Maximum="360" Value="{Binding RotationSpeed}" />
+                    </StackPanel>
+                </StackPanel>
+            </Expander>
+
+            <!-- Standard wiederherstellen -->
+            <Button Classes="ghost" Command="{Binding ResetDefaultsCommand}"
+                    Content="{Binding L.BackgroundReset}" HorizontalAlignment="Left" Margin="0,4,0,0" />
+        </StackPanel>
+    </Border>
+</UserControl>

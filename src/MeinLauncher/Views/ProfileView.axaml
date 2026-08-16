@@ -1,0 +1,217 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:MeinLauncher.ViewModels"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="940" d:DesignHeight="700"
+             x:Class="MeinLauncher.Views.ProfileView"
+             x:DataType="vm:ProfileViewModel">
+
+    <Grid RowDefinitions="Auto,*">
+
+        <!-- Kopf: Zurück-Pfeil (nur in Unter-Ansichten) + Titel -->
+        <Grid Grid.Row="0" Margin="32,28,32,0" ColumnDefinitions="Auto,*" ColumnSpacing="14">
+            <Button Classes="ghost" Click="OnBackClick" IsVisible="{Binding IsInSubPage}"
+                    VerticalAlignment="Center">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBlock Text="←" FontSize="16" FontWeight="Bold" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding L.ProfileBack}" VerticalAlignment="Center" />
+                </StackPanel>
+            </Button>
+            <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center">
+                <TextBlock Text="{Binding HeaderTitle}" Classes="title" />
+                <TextBlock Text="{Binding HeaderSubtitle}" Classes="subtle" TextWrapping="Wrap" />
+            </StackPanel>
+        </Grid>
+
+        <!-- Inhalt -->
+        <Grid Grid.Row="1" Margin="0,14,0,0">
+
+            <!-- Übersicht: Profil-Chips, aktives Profil, Java/RAM, Spielen -->
+            <ScrollViewer IsVisible="{Binding IsOverview}" Margin="32,0,32,0">
+                <StackPanel Spacing="18">
+
+                    <!-- Profile -->
+                    <Border Classes="card" Padding="20">
+                        <StackPanel Spacing="12">
+                            <TextBlock Text="{Binding L.ProfileProfiles}" Classes="section" />
+
+                            <!-- Normalansicht: Chips + Aktionen -->
+                            <StackPanel Spacing="10" IsVisible="{Binding !IsEditingProfile}">
+                                <WrapPanel ItemSpacing="8">
+                                    <ItemsControl ItemsSource="{Binding ProfileItems}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <WrapPanel ItemSpacing="8" />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:ProfileItem">
+                                                <Button Classes="tab" Classes.selected="{Binding IsActive}"
+                                                        Click="OnProfileChipClick" Tag="{Binding}"
+                                                        Padding="16,8">
+                                                    <TextBlock Text="{Binding Display}" />
+                                                </Button>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <Button Classes="ghost" Content="{Binding L.ProfileNewProfile}"
+                                            Command="{Binding NewProfileCommand}" VerticalAlignment="Center" />
+                                </WrapPanel>
+
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <Button Classes="ghost" Content="{Binding L.HomeProfileRename}"
+                                            Command="{Binding RenameProfileCommand}"
+                                            IsEnabled="{Binding HasProfileSelected}" />
+                                    <Button Classes="ghost" Content="{Binding L.HomeProfileDuplicate}"
+                                            Command="{Binding DuplicateProfileCommand}"
+                                            IsEnabled="{Binding HasProfileSelected}" />
+                                    <Button Classes="danger" Content="{Binding L.HomeProfileDelete}"
+                                            Command="{Binding DeleteProfileCommand}"
+                                            IsEnabled="{Binding HasProfileSelected}"
+                                            IsVisible="{Binding !IsDeleteArmed}" />
+                                    <Button Classes="danger" Content="{Binding L.HomeProfileDeleteConfirm}"
+                                            Command="{Binding DeleteProfileCommand}"
+                                            IsEnabled="{Binding HasProfileSelected}"
+                                            IsVisible="{Binding IsDeleteArmed}" />
+                                </StackPanel>
+
+                                <TextBlock Text="{Binding ProfileStatus}" Classes="subtle" TextWrapping="Wrap" />
+                                <TextBlock Text="{Binding L.HomeProfileHint}" Classes="subtle" FontSize="12"
+                                           TextWrapping="Wrap" />
+                            </StackPanel>
+
+                            <!-- Inline-Bearbeitung: Name eingeben -->
+                            <StackPanel Spacing="8" IsVisible="{Binding IsEditingProfile}">
+                                <TextBox x:Name="ProfileEditBox" Text="{Binding ProfileEditName}"
+                                         PlaceholderText="{Binding L.HomeProfileNamePlaceholder}"
+                                         KeyDown="OnProfileEditKeyDown" MinWidth="260" />
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <Button Classes="primary" Content="{Binding L.HomeProfileOk}"
+                                            Command="{Binding ApplyProfileEditCommand}" />
+                                    <Button Classes="ghost" Content="{Binding L.HomeProfileCancel}"
+                                            Command="{Binding CancelProfileEditCommand}" />
+                                </StackPanel>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Aktives Profil -->
+                    <Border Classes="card" Padding="24">
+                        <StackPanel Spacing="16">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="{Binding L.ProfileActiveProfile}" Classes="section" />
+                                <TextBlock Text="{Binding ActiveProfileName}" FontSize="22" FontWeight="Bold"
+                                           TextWrapping="Wrap" />
+                            </StackPanel>
+
+                            <!-- Version / Loader / Mods: Karten, die bei schmalen Fenstern umbrechen -->
+                            <WrapPanel ItemSpacing="16">
+                                <Border Classes="card" Padding="18" MinWidth="280" MaxWidth="420">
+                                    <StackPanel Spacing="10">
+                                        <TextBlock Text="{Binding L.ProfileVersionLabel}" Classes="fieldlabel" />
+                                        <ComboBox ItemsSource="{Binding InstalledVersions}"
+                                                  SelectedItem="{Binding SelectedVersion}"
+                                                  MinWidth="200" />
+                                        <Button Classes="ghost" Content="{Binding L.ProfileManageVersions}"
+                                                Click="OnOpenVersionsClick" />
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Classes="card" Padding="18" MinWidth="280" MaxWidth="420">
+                                    <StackPanel Spacing="10">
+                                        <TextBlock Text="{Binding L.ProfileLoaderLabel}" Classes="fieldlabel" />
+                                        <ComboBox ItemsSource="{Binding LoaderOptions}"
+                                                  SelectedItem="{Binding SelectedLoaderOption}"
+                                                  MinWidth="200">
+                                            <ComboBox.ItemTemplate>
+                                                <DataTemplate x:DataType="vm:ModLoaderItem">
+                                                    <TextBlock Text="{Binding Text}" />
+                                                </DataTemplate>
+                                            </ComboBox.ItemTemplate>
+                                        </ComboBox>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Classes="card" Padding="18" MinWidth="280" MaxWidth="420">
+                                    <StackPanel Spacing="10">
+                                        <TextBlock Text="{Binding L.ProfileModCountLabel}" Classes="fieldlabel" />
+                                        <TextBlock Text="{Binding ModCountLabel}" FontSize="16" FontWeight="SemiBold" />
+                                        <Button Classes="primary" Content="{Binding L.ProfileManageMods}"
+                                                Click="OnOpenModsClick" />
+                                    </StackPanel>
+                                </Border>
+                            </WrapPanel>
+
+                            <!-- Java & Arbeitsspeicher -->
+                            <Border Classes="card" Padding="18">
+                                <StackPanel Spacing="10">
+                                    <TextBlock Text="{Binding L.ProfileJavaRam}" Classes="fieldlabel" />
+
+                                    <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
+                                        <TextBox Text="{Binding JavaPath}" MinWidth="240" />
+                                        <Button Grid.Column="1" Classes="ghost" Content="{Binding L.SettingsBrowse}"
+                                                Click="OnBrowseJavaClick" />
+                                        <Button Grid.Column="2" Classes="ghost" Content="{Binding L.SettingsRescan}"
+                                                Command="{Binding ScanJavaCommand}" />
+                                    </Grid>
+
+                                    <TextBlock Text="{Binding L.SettingsDetectedRuntimes}" Classes="fieldlabel"
+                                               Margin="0,6,0,0" IsVisible="{Binding HasJavaRuntimes}" />
+
+                                    <Border Classes="card" Padding="8" IsVisible="{Binding HasJavaRuntimes}">
+                                        <StackPanel Spacing="6">
+                                            <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsJavaScanning}" />
+                                            <ListBox Classes="versions" ItemsSource="{Binding JavaRuntimes}"
+                                                     MaxHeight="150" Background="Transparent">
+                                                <ListBox.ItemTemplate>
+                                                    <DataTemplate x:DataType="vm:JavaRuntimeItem">
+                                                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12" Margin="4,4">
+                                                            <Button Classes="ghost" MinWidth="90" Padding="10,6"
+                                                                    Content="{Binding L.SettingsUse}"
+                                                                    Click="OnUseJavaClick" Tag="{Binding}" />
+                                                            <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                                                <TextBlock Text="{Binding VersionLabel}" FontWeight="SemiBold"
+                                                                           TextTrimming="CharacterEllipsis" />
+                                                                <TextBlock Text="{Binding Path}" Classes="subtle" FontSize="12"
+                                                                           TextWrapping="Wrap" />
+                                                            </StackPanel>
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </ListBox.ItemTemplate>
+                                            </ListBox>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <TextBlock Text="{Binding AutoDetectedJava}" Classes="subtle" FontSize="12"
+                                               TextWrapping="Wrap" />
+
+                                    <Grid RowDefinitions="Auto,Auto" RowSpacing="4" Margin="0,6,0,0">
+                                        <TextBlock Text="{Binding RamLabel}" MinWidth="90" HorizontalAlignment="Right"
+                                                   FontWeight="SemiBold" />
+                                        <Slider Grid.Row="1" Minimum="512" Maximum="16384" TickFrequency="1024"
+                                                IsSnapToTickEnabled="True" Value="{Binding MaxRamMb}" />
+                                    </Grid>
+                                    <TextBlock Text="{Binding L.SettingsRamHint}" Classes="subtle" FontSize="12"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Spielen -->
+                            <StackPanel Orientation="Horizontal" Spacing="14" VerticalAlignment="Center">
+                                <Button Classes="primary" Command="{Binding PlayCommand}"
+                                        Content="{Binding L.ProfilePlay}" FontSize="16" Padding="32,12"
+                                        MinWidth="160" />
+                                <TextBlock Text="{Binding StatusMessage}" Classes="subtle"
+                                           VerticalAlignment="Center" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- Unter-Ansicht: Versions- bzw. Mods-Verwaltung (via ViewLocator) -->
+            <ContentControl IsVisible="{Binding !IsOverview}" Content="{Binding SubPage}" />
+        </Grid>
+    </Grid>
+</UserControl>

@@ -1,0 +1,101 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:MeinLauncher.ViewModels"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="940" d:DesignHeight="700"
+             x:Class="MeinLauncher.Views.Settings.MinecraftSettingsView"
+             x:DataType="vm:SettingsViewModel">
+
+    <ScrollViewer>
+        <WrapPanel ItemSpacing="16">
+
+            <!-- Java-Runtime -->
+            <Border Classes="card" Padding="26" MinWidth="360" MaxWidth="430">
+                <StackPanel Spacing="10">
+
+                    <TextBlock Text="{Binding L.SettingsJavaRuntime}" Classes="section" />
+
+                    <TextBlock Text="{Binding L.SettingsJavaPathHint}" Classes="fieldlabel" Margin="0,6,0,0"
+                               TextWrapping="Wrap" />
+                    <TextBox Text="{Binding JavaPath}" MinWidth="240" />
+
+                    <WrapPanel ItemSpacing="10">
+                        <Button Classes="ghost" Content="{Binding L.SettingsBrowse}" Click="OnBrowseJavaClick" />
+                        <Button Classes="ghost" Command="{Binding ScanJavaCommand}"
+                                Content="{Binding L.SettingsRescan}" />
+                    </WrapPanel>
+
+                    <TextBlock Text="{Binding L.SettingsDetectedRuntimes}" Classes="fieldlabel" Margin="0,6,0,0"
+                               IsVisible="{Binding HasJavaRuntimes}" />
+
+                    <!-- Erkannte Java-Versionen: eigene Scrollfläche, niemals überlappend -->
+                    <Border Classes="card" Padding="8" IsVisible="{Binding HasJavaRuntimes}">
+                        <StackPanel Spacing="6">
+                            <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsJavaScanning}" />
+                            <ListBox Classes="versions" ItemsSource="{Binding JavaRuntimes}"
+                                     MaxHeight="190" Background="Transparent">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:JavaRuntimeItem">
+                                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12" Margin="4,4">
+                                            <Button Classes="ghost" MinWidth="90" Padding="10,6"
+                                                    Content="{Binding L.SettingsUse}"
+                                                    Click="OnUseJavaClick" Tag="{Binding}" />
+                                            <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding VersionLabel}" FontWeight="SemiBold"
+                                                           TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Text="{Binding Path}" Classes="subtle" FontSize="12"
+                                                           TextWrapping="Wrap" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </StackPanel>
+                    </Border>
+
+                    <TextBlock Text="{Binding AutoDetectedJava}" Classes="subtle" FontSize="12"
+                               TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
+
+            <!-- Spieldaten -->
+            <Border Classes="card" Padding="26" MinWidth="360" MaxWidth="430">
+                <StackPanel Spacing="10">
+
+                    <TextBlock Text="{Binding L.SettingsGameData}" Classes="section" />
+
+                    <TextBlock Text="{Binding L.SettingsGameDataHint}" Classes="fieldlabel" Margin="0,6,0,0"
+                               TextWrapping="Wrap" />
+                    <TextBox Text="{Binding GameDirectory}" MinWidth="240" />
+
+                    <WrapPanel ItemSpacing="10">
+                        <Button Classes="ghost" Content="{Binding L.SettingsBrowse}" Click="OnBrowseGameDirClick" />
+                        <Button Classes="ghost" Content="{Binding L.SettingsOpenExplorer}" Click="OnOpenGameDirClick" />
+                        <Button Classes="ghost" Content="{Binding L.SettingsResetDefault}" Click="OnResetGameDirClick" />
+                    </WrapPanel>
+
+                    <TextBlock Text="{Binding L.SettingsGameDataSubfolders}" Classes="subtle" FontSize="12"
+                               TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
+
+            <!-- Arbeitsspeicher -->
+            <Border Classes="card" Padding="26" MinWidth="360" MaxWidth="430">
+                <StackPanel Spacing="10">
+                    <TextBlock Text="{Binding L.SettingsRam}" Classes="section" />
+
+                    <Grid RowDefinitions="Auto,Auto" RowSpacing="4">
+                        <TextBlock Text="{Binding RamLabel}" MinWidth="90" HorizontalAlignment="Right"
+                                   FontWeight="SemiBold" />
+                        <Slider Grid.Row="1" Minimum="512" Maximum="16384" TickFrequency="1024"
+                                IsSnapToTickEnabled="True" Value="{Binding MaxRamMb}" />
+                    </Grid>
+
+                    <TextBlock Text="{Binding L.SettingsRamHint}" Classes="subtle" FontSize="12"
+                               TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
+        </WrapPanel>
+    </ScrollViewer>
+</UserControl>

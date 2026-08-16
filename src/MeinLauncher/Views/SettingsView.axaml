@@ -1,0 +1,66 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:MeinLauncher.ViewModels"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="940" d:DesignHeight="700"
+             x:Class="MeinLauncher.Views.SettingsView"
+             x:DataType="vm:SettingsViewModel">
+
+    <Grid RowDefinitions="Auto,*,Auto" Margin="32" RowSpacing="14">
+
+        <!-- Kopf: Zurück-Pfeil + Titel der aktuellen Ansicht -->
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,*" ColumnSpacing="14">
+            <Button Classes="ghost" Click="OnBackClick" IsVisible="{Binding IsInSection}"
+                    VerticalAlignment="Center">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBlock Text="←" FontSize="16" FontWeight="Bold" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding L.SettingsBack}" VerticalAlignment="Center" />
+                </StackPanel>
+            </Button>
+            <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center">
+                <TextBlock Text="{Binding HeaderTitle}" Classes="title" />
+                <TextBlock Text="{Binding HeaderSubtitle}" Classes="subtle" TextWrapping="Wrap" />
+            </StackPanel>
+        </Grid>
+
+        <!-- Inhalt -->
+        <Grid Grid.Row="1">
+
+            <!-- Kategorie-Übersicht: Karten im WrapPanel (2 Spalten wenn Platz, sonst 1) -->
+            <ScrollViewer IsVisible="{Binding !IsInSection}">
+                <ItemsControl ItemsSource="{Binding Sections}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel ItemSpacing="16" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:SettingsSectionItem">
+                            <Button Classes="settings-card" MinWidth="360" MaxWidth="430"
+                                    Click="OnSectionCardClick" Tag="{Binding Key}">
+                                <StackPanel Spacing="10">
+                                    <TextBlock Text="{Binding Emoji}" FontSize="26" />
+                                    <TextBlock Text="{Binding Title}" FontSize="16" FontWeight="SemiBold" />
+                                    <TextBlock Text="{Binding Subtitle}" Classes="subtle" FontSize="12"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+
+            <!-- Kategorie-Unterseite (wird im Code-behind befüllt) -->
+            <ContentControl x:Name="SectionHost" IsVisible="{Binding IsInSection}" />
+        </Grid>
+
+        <!-- Fuß: Speichern ist immer sichtbar -->
+        <Grid Grid.Row="2" ColumnDefinitions="Auto,*" ColumnSpacing="14">
+            <Button Classes="primary" Command="{Binding SaveCommand}"
+                    Content="{Binding L.SettingsSave}" MinWidth="200" />
+            <TextBlock Grid.Column="1" Text="{Binding StatusMessage}" Classes="subtle"
+                       VerticalAlignment="Center" TextWrapping="Wrap" />
+        </Grid>
+    </Grid>
+</UserControl>

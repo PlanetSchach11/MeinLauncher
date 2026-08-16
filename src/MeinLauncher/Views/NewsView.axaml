@@ -1,0 +1,155 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:MeinLauncher.ViewModels"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="940" d:DesignHeight="700"
+             x:Class="MeinLauncher.Views.NewsView"
+             x:DataType="vm:NewsViewModel"
+             x:Name="Root">
+
+    <Grid RowDefinitions="Auto,*" Margin="32,28,32,0">
+
+        <!-- Kopf -->
+        <StackPanel Grid.Row="0" Spacing="4">
+            <TextBlock Text="{Binding L.NewsTitle}" Classes="title" />
+            <TextBlock Text="{Binding L.NewsSubtitle}" Classes="subtle" TextWrapping="Wrap" />
+        </StackPanel>
+
+        <!-- Inhalt -->
+        <Grid Grid.Row="1" Margin="0,14,0,0">
+
+            <!-- Ladezustand -->
+            <StackPanel IsVisible="{Binding IsLoading}" HorizontalAlignment="Center"
+                        VerticalAlignment="Center" Spacing="12">
+                <ProgressBar IsIndeterminate="True" Width="240" />
+                <TextBlock Text="{Binding L.NewsLoading}" Classes="subtle" HorizontalAlignment="Center" />
+            </StackPanel>
+
+            <!-- Fehler (offline, YouTube nicht erreichbar, Timeout, ungültige Daten) -->
+            <StackPanel IsVisible="{Binding HasError}" HorizontalAlignment="Center"
+                        VerticalAlignment="Center" Spacing="14" MaxWidth="440">
+                <Path Data="{x:Static vm:Icons.Alert}" Width="40" Height="40"
+                      Fill="{DynamicResource Warning}" Stretch="Uniform" HorizontalAlignment="Center" />
+                <TextBlock Text="{Binding L.NewsLoadError}" Classes="subtle"
+                           TextAlignment="Center" TextWrapping="Wrap" />
+                <Button Classes="primary" Content="{Binding L.NewsRetry}"
+                        Command="{Binding RetryCommand}" HorizontalAlignment="Center" />
+            </StackPanel>
+
+            <!-- Keine Videos -->
+            <StackPanel IsVisible="{Binding IsEmpty}" HorizontalAlignment="Center"
+                        VerticalAlignment="Center" Spacing="10">
+                <TextBlock Text="{Binding L.NewsEmpty}" Classes="subtle" TextAlignment="Center" />
+            </StackPanel>
+
+            <!-- News-Inhalt -->
+            <ScrollViewer IsVisible="{Binding HasVideos}">
+                <StackPanel Spacing="18">
+
+                    <!-- Eingebetteter Player (nur sichtbar, während ein Video läuft) -->
+                    <Border Classes="card" Padding="0" IsVisible="{Binding IsInPlayer}">
+                        <Grid>
+                            <Border x:Name="PlayerHost" Height="460" CornerRadius="14"
+                                    ClipToBounds="True" Background="{DynamicResource BgCard}" />
+
+                            <!-- WebView2 nicht verfügbar: freundliche Meldung -->
+                            <StackPanel x:Name="PlayerErrorPanel" IsVisible="False"
+                                        HorizontalAlignment="Center" VerticalAlignment="Center"
+                                        Spacing="12" MaxWidth="460">
+                                <Path Data="{x:Static vm:Icons.Alert}" Width="40" Height="40"
+                                      Fill="{DynamicResource Warning}" Stretch="Uniform"
+                                      HorizontalAlignment="Center" />
+                                <TextBlock Text="{Binding L.NewsPlayerError}" Classes="subtle"
+                                           TextAlignment="Center" TextWrapping="Wrap" />
+                                <Button Classes="ghost" Content="{Binding L.NewsClose}"
+                                        Command="{Binding ClosePlayerCommand}" HorizontalAlignment="Center" />
+                            </StackPanel>
+
+                            <!-- Schließen -->
+                            <Button Classes="ghost" HorizontalAlignment="Right" VerticalAlignment="Top"
+                                    Margin="12" Width="36" Height="36" Padding="0"
+                                    Command="{Binding ClosePlayerCommand}"
+                                    ToolTip.Tip="{Binding L.NewsClose}">
+                                <Path Data="{x:Static vm:Icons.Close}" Width="16" Height="16"
+                                      Stretch="Uniform" />
+                            </Button>
+                        </Grid>
+                    </Border>
+
+                    <!-- Hero: neuestes Video -->
+                    <Border Classes="card" Padding="0" ClipToBounds="True"
+                            IsVisible="{Binding !IsInPlayer}">
+                        <Grid MinHeight="300">
+                            <Border CornerRadius="14" ClipToBounds="True">
+                                <!-- Feste Höhe: die Feed-Thumbnails (hqdefault) sind 4:3,
+                                     ungestreckt würde der Hero ~656 px hoch und die
+                                     Karten unterhalb des Bildschirmrands landen. -->
+                                <Image Source="{Binding HeroItem.Thumbnail}" Stretch="UniformToFill"
+                                       Height="360" />
+                            </Border>
+                            <Border Background="#AA000000" />
+                            <StackPanel VerticalAlignment="Bottom" Margin="26,18" Spacing="10" MaxWidth="640">
+                                <TextBlock Text="{Binding HeroChannelLine}" FontSize="13" FontWeight="SemiBold"
+                                           Foreground="#D0FFFFFF" />
+                                <TextBlock Text="{Binding HeroTitle}" FontSize="24" FontWeight="Bold"
+                                           Foreground="White" TextWrapping="Wrap" MaxLines="2"
+                                           TextTrimming="CharacterEllipsis" />
+                                <StackPanel Orientation="Horizontal" Spacing="12">
+                                    <Button Classes="primary" Command="{Binding OpenPlayerCommand}"
+                                            CommandParameter="{Binding HeroItem}">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <Path Data="{x:Static vm:Icons.Play}" Width="16" Height="16"
+                                                  Fill="{DynamicResource TextOnAccent}" Stretch="Uniform"
+                                                  VerticalAlignment="Center" />
+                                            <TextBlock Text="{Binding L.NewsWatch}" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </Button>
+                                    <TextBlock Text="{Binding HeroItem.Description}" Foreground="#DDFFFFFF"
+                                               FontSize="13" TextWrapping="Wrap" MaxLines="2"
+                                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
+                                               MaxWidth="420" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <!-- Weitere Videos: Karten, brechen bei schmalen Fenstern auf eine Spalte um -->
+                    <StackPanel Spacing="14" IsVisible="{Binding HasCards}">
+                        <TextBlock Text="{Binding L.NewsMore}" Classes="section" />
+                        <ItemsControl ItemsSource="{Binding Cards}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel ItemSpacing="14" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:NewsVideoItem">
+                                    <Button Classes="news-card" Width="280"
+                                            Command="{Binding #Root.DataContext.OpenPlayerCommand}"
+                                            CommandParameter="{Binding}">
+                                        <StackPanel>
+                                            <Border CornerRadius="14,14,0,0" ClipToBounds="True">
+                                                <Image Source="{Binding Thumbnail}" Stretch="UniformToFill"
+                                                       Height="150" />
+                                            </Border>
+                                            <Border Padding="12,10">
+                                                <StackPanel Spacing="4">
+                                                    <TextBlock Text="{Binding Title}" FontSize="14"
+                                                               FontWeight="SemiBold" TextWrapping="Wrap" MaxLines="2"
+                                                               TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock Text="{Binding PublishedLabel}" Classes="subtle"
+                                                               FontSize="12" />
+                                                </StackPanel>
+                                            </Border>
+                                        </StackPanel>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+    </Grid>
+</UserControl>

@@ -1,0 +1,74 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:MeinLauncher.ViewModels"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="940" d:DesignHeight="700"
+             x:Class="MeinLauncher.Views.HomeView"
+             x:DataType="vm:HomeViewModel">
+
+    <ScrollViewer>
+        <StackPanel Margin="32" Spacing="18">
+
+            <!-- Hero -->
+            <Border Classes="card" Padding="28">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="{Binding Greeting}" FontSize="28" FontWeight="Bold"
+                               TextWrapping="Wrap" />
+                    <TextBlock Text="{Binding SelectedVersionLabel}" FontSize="16" Classes="subtle"
+                               TextWrapping="Wrap" />
+                    <TextBlock Text="{Binding ActiveProfileLine}" FontSize="14" FontWeight="SemiBold"
+                               Margin="0,10,0,0" TextWrapping="Wrap" />
+                    <WrapPanel Orientation="Horizontal" Margin="0,18,0,0" VerticalAlignment="Top">
+                        <Button Classes="primary" Command="{Binding PlayCommand}" Content="{Binding L.HomePlay}"
+                                FontSize="16" Padding="32,12" MinWidth="160" Margin="0,0,12,12" />
+                        <Button Classes="ghost" Command="{Binding OpenProfileCommand}"
+                                Content="{Binding L.HomeManageProfiles}" Margin="0,0,0,12" />
+                    </WrapPanel>
+                    <TextBlock Classes="subtle" Text="{Binding L.HomeDirectLaunchHint}"
+                               Margin="0,14,0,0" TextWrapping="Wrap" />
+                    <TextBlock Text="{Binding StatusMessage}" Classes="subtle" Margin="0,10,0,0"
+                               TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
+
+            <!-- Kennzahlen: WrapPanel statt festem 3-Spalten-Grid, damit die Karten
+                 bei schmalen Fenstern umbrechen statt sich zu quetschen (kein
+                 Text-Überlappen zwischen den Karten). -->
+            <WrapPanel ItemSpacing="18">
+                <Border Classes="card" Padding="20" MinWidth="200">
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="{Binding InstalledVersionCount}" FontSize="30" FontWeight="Bold"
+                                   Foreground="{DynamicResource Accent}"
+                                   TextTrimming="CharacterEllipsis" />
+                        <TextBlock Text="{Binding L.HomeInstalledVersions}" Classes="subtle" TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+                <Border Classes="card" Padding="20" MinWidth="200">
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="{Binding ModCount}" FontSize="30" FontWeight="Bold"
+                                   Foreground="{DynamicResource Accent}"
+                                   TextTrimming="CharacterEllipsis" />
+                        <TextBlock Text="{Binding L.HomeModsInFolder}" Classes="subtle" TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+                <Border Classes="card" Padding="20" MinWidth="200">
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="{Binding Username}" FontSize="24" FontWeight="Bold"
+                                   TextTrimming="CharacterEllipsis" TextWrapping="Wrap" />
+                        <TextBlock Text="{Binding L.HomeActivePlayer}" Classes="subtle" TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+            </WrapPanel>
+
+            <!-- Hinweis -->
+            <Border Classes="card" Padding="20">
+                <StackPanel Spacing="6">
+                    <TextBlock Text="{Binding L.HomeAboutTitle}" FontSize="16" FontWeight="SemiBold" />
+                    <TextBlock Classes="subtle" Text="{Binding L.HomeAboutText}"
+                               TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

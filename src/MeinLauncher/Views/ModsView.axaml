@@ -1,0 +1,209 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:MeinLauncher.ViewModels"
+             xmlns:models="using:MeinLauncher.Models"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="940" d:DesignHeight="700"
+             x:Class="MeinLauncher.Views.ModsView"
+             x:DataType="vm:ModsViewModel">
+
+    <Grid RowDefinitions="Auto,Auto,*" Margin="32" RowSpacing="14">
+
+        <!-- Status (Titel liefert die Profil-Seite) -->
+        <TextBlock Grid.Row="0" Text="{Binding StatusMessage}" Classes="subtle" TextWrapping="Wrap" />
+
+        <!-- Bereichs-Umschalter + Version/Loader + Aktionen -->
+        <StackPanel Grid.Row="1" Spacing="10">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button Classes="tab" Classes.selected="{Binding ShowInstalled}"
+                        Content="{Binding L.ModsSectionInstalled}"
+                        Command="{Binding SelectSectionCommand}" CommandParameter="installed" />
+                <Button Classes="tab" Classes.selected="{Binding ShowModrinth}"
+                        Content="{Binding L.ModsSectionModrinth}"
+                        Command="{Binding SelectSectionCommand}" CommandParameter="modrinth" />
+            </StackPanel>
+
+            <WrapPanel ItemSpacing="14" VerticalAlignment="Center">
+                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <TextBlock Classes="subtle" Text="{Binding L.ModsGameVersionLabel}" VerticalAlignment="Center" />
+                    <TextBlock FontWeight="SemiBold" Text="{Binding GameVersion}" VerticalAlignment="Center" />
+                </StackPanel>
+                <Button Classes="ghost" Content="{Binding L.ModsGoToVersions}"
+                        Command="{Binding GoToVersionsCommand}"
+                        IsVisible="{Binding !HasGameVersion}" VerticalAlignment="Center" />
+                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <TextBlock Classes="subtle" Text="{Binding L.ModsLoaderLabel}" VerticalAlignment="Center" />
+                    <ComboBox ItemsSource="{Binding LoaderOptions}"
+                              SelectedItem="{Binding SelectedLoaderOption}"
+                              MinWidth="150">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:ModLoaderItem">
+                                <TextBlock Text="{Binding Text}" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                </StackPanel>
+                <Button Classes="ghost" Content="{Binding L.ModsOpenFolder}"
+                        Click="OnOpenFolderClick" VerticalAlignment="Center" />
+                <Button Classes="ghost" Content="{Binding L.ModsRefresh}"
+                        Command="{Binding RefreshInstalledCommand}" VerticalAlignment="Center" />
+            </WrapPanel>
+        </StackPanel>
+
+        <!-- Installierte Mods -->
+        <Grid Grid.Row="2" IsVisible="{Binding ShowInstalled}">
+            <Border Classes="card" Padding="10">
+                <Grid>
+                    <StackPanel IsVisible="{Binding IsInstalledEmpty}" Spacing="8" Margin="14">
+                        <TextBlock Text="{Binding L.ModsNoneFound}" FontSize="18" FontWeight="SemiBold" />
+                        <TextBlock Classes="subtle" Text="{Binding L.ModsEmptyText}" TextWrapping="Wrap" />
+                        <Button Classes="ghost" Content="{Binding L.ModsOpenFolder}"
+                                Click="OnOpenFolderClick" HorizontalAlignment="Left" />
+                    </StackPanel>
+
+                    <ListBox Classes="mods" ItemsSource="{Binding InstalledMods}"
+                             IsVisible="{Binding !IsInstalledEmpty}">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="models:InstalledModItem">
+                                <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto" Margin="8,6" ColumnSpacing="14">
+                                    <Border Width="42" Height="42" CornerRadius="8" ClipToBounds="True"
+                                            Background="{DynamicResource BgCardHover}"
+                                            BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="1"
+                                            VerticalAlignment="Center">
+                                        <Grid>
+                                            <TextBlock Text="{Binding Initial}" FontWeight="SemiBold" Classes="subtle"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            <Image Source="{Binding Icon}" Stretch="UniformToFill" />
+                                        </Grid>
+                                    </Border>
+
+                                    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding DisplayName}" FontSize="15" FontWeight="SemiBold"
+                                                   TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Text="{Binding MetaLabel}" FontSize="12" Classes="subtle" />
+                                        <TextBlock Text="{Binding FileLabel}" FontSize="11" Classes="subtle" />
+                                        <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding HasUpdate}">
+                                            <Border Classes="badge snapshot" VerticalAlignment="Center"
+                                                    ToolTip.Tip="{Binding UpdateTooltip}">
+                                                <TextBlock Text="{Binding UpdateVersionLabel}" />
+                                            </Border>
+                                            <Button Classes="ghost" Content="{Binding L.ModsUpdate}"
+                                                    Click="OnUpdateClick" Tag="{Binding}"
+                                                    MinHeight="26" Padding="10,4" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </StackPanel>
+
+                                    <Border Grid.Column="2" Classes="badge release" IsVisible="{Binding IsEnabled}"
+                                            VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding StatusLabel}" />
+                                    </Border>
+                                    <Border Grid.Column="2" Classes="badge snapshot" IsVisible="{Binding !IsEnabled}"
+                                            VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding StatusLabel}" />
+                                    </Border>
+
+                                    <ToggleSwitch Grid.Column="3" IsChecked="{Binding IsEnabled, Mode=OneWay}"
+                                                  Click="OnInstalledToggleChanged" VerticalAlignment="Center" />
+
+                                    <Button Grid.Column="4" Classes="danger" Content="{Binding L.ModsUninstall}"
+                                            Click="OnUninstallClick" Tag="{Binding}" VerticalAlignment="Center" />
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- Modrinth -->
+        <Grid Grid.Row="2" IsVisible="{Binding ShowModrinth}" RowDefinitions="Auto,*" RowSpacing="12">
+            <StackPanel Spacing="10">
+                <TextBlock Classes="subtle" Text="{Binding L.ModsModrinthIntro}" TextWrapping="Wrap" />
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                    <TextBox x:Name="ModrinthBox" PlaceholderText="{Binding L.ModsSearchPlaceholder}"
+                             Text="{Binding ModrinthQuery}" KeyDown="OnSearchKeyDown" />
+                    <Button Grid.Column="1" Content="{Binding L.ModsSearchButton}"
+                            Command="{Binding BrowseModrinthCommand}" />
+                </Grid>
+                <Button Classes="ghost" Content="{Binding L.ModsBrowseButton}"
+                        Command="{Binding BrowsePopularCommand}" HorizontalAlignment="Left" />
+            </StackPanel>
+
+            <Border Grid.Row="1" Classes="card" Padding="10">
+                <Grid>
+                    <StackPanel IsVisible="{Binding IsBrowseEmpty}" Spacing="8" Margin="14">
+                        <TextBlock Text="{Binding L.ModsSearchStartHint}" Classes="subtle" TextWrapping="Wrap"
+                                   IsVisible="{Binding !HasBrowsed}" />
+                        <TextBlock Text="{Binding L.ModsNoResults}" FontSize="15" FontWeight="SemiBold"
+                                   IsVisible="{Binding HasBrowsed}" />
+                    </StackPanel>
+
+                    <ListBox Classes="mods" ItemsSource="{Binding BrowseResults}"
+                             IsVisible="{Binding !IsBrowseEmpty}">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="models:ModrinthModItem">
+                                <Grid ColumnDefinitions="Auto,*,Auto" Margin="8,6" ColumnSpacing="14">
+                                    <Border Width="42" Height="42" CornerRadius="8" ClipToBounds="True"
+                                            Background="{DynamicResource BgCardHover}"
+                                            BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="1"
+                                            VerticalAlignment="Center">
+                                        <Grid>
+                                            <TextBlock Text="{Binding Initial}" FontWeight="SemiBold" Classes="subtle"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            <Image Source="{Binding Icon}" Stretch="UniformToFill" />
+                                        </Grid>
+                                    </Border>
+
+                                    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Title}" FontSize="15" FontWeight="SemiBold"
+                                                   TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Text="{Binding AuthorLine}" FontSize="12" Classes="subtle" />
+                                        <TextBlock Text="{Binding MetaLabel}" FontSize="12" Classes="subtle" />
+                                        <TextBlock Text="{Binding DescriptionTrimmed}" FontSize="12" Classes="subtle"
+                                                   TextWrapping="Wrap" MaxLines="2" />
+                                    </StackPanel>
+
+                                    <StackPanel Grid.Column="2" Spacing="6" VerticalAlignment="Center" HorizontalAlignment="Right">
+                                        <Button Classes="primary" IsVisible="{Binding ShowInstallButton}"
+                                                IsEnabled="{Binding !IsInstalling}"
+                                                Click="OnInstallClick" Tag="{Binding}"
+                                                MinHeight="30" Padding="14,5">
+                                            <Button.Content>
+                                                <Grid>
+                                                    <TextBlock Text="{Binding L.ModsInstall}"
+                                                               IsVisible="{Binding !IsInstalling}" />
+                                                    <TextBlock Text="{Binding L.ModsInstalling}"
+                                                               IsVisible="{Binding IsInstalling}" />
+                                                </Grid>
+                                            </Button.Content>
+                                        </Button>
+                                        <Button Classes="primary" IsVisible="{Binding ShowInstalledButton}"
+                                                IsEnabled="False" MinHeight="30" Padding="14,5">
+                                            <Button.Content>
+                                                <TextBlock Text="{Binding L.ModsInstalledBadge}" />
+                                            </Button.Content>
+                                        </Button>
+                                        <Button Classes="primary" IsVisible="{Binding ShowUpdateButton}"
+                                                IsEnabled="{Binding !IsUpdating}"
+                                                Click="OnModrinthUpdateClick" Tag="{Binding}"
+                                                MinHeight="30" Padding="14,5">
+                                            <Button.Content>
+                                                <Grid>
+                                                    <TextBlock Text="{Binding L.ModsUpdate}"
+                                                               IsVisible="{Binding !IsUpdating}" />
+                                                    <TextBlock Text="{Binding L.ModsUpdating}"
+                                                               IsVisible="{Binding IsUpdating}" />
+                                                </Grid>
+                                            </Button.Content>
+                                        </Button>
+                                    </StackPanel>
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

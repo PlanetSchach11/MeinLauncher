@@ -1,0 +1,11 @@
+bin/
+obj/
+.vs/
+.idea/
+*.user
+*.suo
+settings.json
+session.bin
+account.log
+*.log
+games/
