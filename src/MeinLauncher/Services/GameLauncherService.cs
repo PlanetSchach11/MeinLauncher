@@ -40,13 +40,13 @@ public sealed class GameLauncherService
     /// Startet die gewählte Version. Liefert niemals eine Exception – Fehler werden
     /// als Ergebnis mit passender Lokalisierungs-Meldung zurückgegeben.
     /// </summary>
-    public async Task<GameLaunchResult> LaunchAsync(LauncherSettings settings, CancellationToken cancellationToken = default)
+    public async Task<GameLaunchResult> LaunchAsync(LauncherSettings settings, LauncherProfile? activeProfile = null, CancellationToken cancellationToken = default)
     {
         var versionId = settings.SelectedVersionId.Trim();
         if (string.IsNullOrWhiteSpace(versionId))
             return Fail("Home.NoVersionSelected");
 
-        var install = ResolveInstallation(settings, versionId);
+        var install = ResolveInstallation(settings, versionId, activeProfile);
         if (install is null)
             return Fail("Home.VersionNotInstalled", versionId);
 
@@ -64,6 +64,36 @@ public sealed class GameLauncherService
         var versionJson = LoadVersionJson(install.VersionDirectory, versionId);
         if (versionJson is null || string.IsNullOrWhiteSpace(versionJson.MainClass))
             return Fail("Home.VersionDataError", versionId);
+
+        // ============================================================ MOD TEST
+        var modsDir = Path.Combine(install.GameDirectory, "mods");
+        var modFiles = Directory.Exists(modsDir)
+            ? Directory.GetFiles(modsDir, "*.jar", SearchOption.TopDirectoryOnly)
+            : Array.Empty<string>();
+        var isInherited = !string.IsNullOrEmpty(versionJson.InheritsFrom);
+        var loaderName = isInherited ? "Fabric (inheritsFrom: " + versionJson.InheritsFrom + ")" : "Vanilla";
+
+        AccountDiagnostics.Log("=== MOD TEST ===");
+        AccountDiagnostics.Log($"  Aktives Profil:     {(activeProfile is { } p ? p.Name : "(kein Profil)")}");
+        AccountDiagnostics.Log($"  Profil-ID:           {(activeProfile is { } p2 ? p2.Id : "n/a")}");
+        AccountDiagnostics.Log($"  Minecraft-Version:   {versionId}");
+        AccountDiagnostics.Log($"  Loader:              {loaderName}");
+        AccountDiagnostics.Log($"  GameDirectory:       {install.GameDirectory}");
+        AccountDiagnostics.Log($"  InstanceDirectory:   {install.GameDirectory}");
+        AccountDiagnostics.Log($"  VersionDirectory:    {install.VersionDirectory}");
+        AccountDiagnostics.Log($"  LibrariesDirectory:  {install.LibrariesDirectory}");
+        AccountDiagnostics.Log($"  AssetsDirectory:     {install.AssetsDirectory}");
+        AccountDiagnostics.Log($"  Mods-Ordner:         {modsDir}");
+        AccountDiagnostics.Log($"  Mods-Ordner existiert: {Directory.Exists(modsDir)}");
+        AccountDiagnostics.Log($"  Anzahl Mod-JARs:     {modFiles.Length}");
+        foreach (var mod in modFiles)
+            AccountDiagnostics.Log($"    - {Path.GetFileName(mod)}");
+        AccountDiagnostics.Log($"  Version-JSON:        {Path.Combine(install.VersionDirectory, Path.GetFileName(install.VersionDirectory) + ".json")}");
+        AccountDiagnostics.Log($"  MainClass:           {versionJson.MainClass}");
+        AccountDiagnostics.Log($"  Libraries (total):   {versionJson.Libraries.Count}");
+        AccountDiagnostics.Log($"  InheritsFrom:        {(isInherited ? versionJson.InheritsFrom : "(none)")}");
+        AccountDiagnostics.Log("=== END MOD TEST ===");
+        // ============================================================
 
         var javaPath = ResolveJavaPath(settings.JavaPath, versionJson.JavaVersion?.MajorVersion ?? 0);
         if (javaPath is null)
@@ -85,23 +115,137 @@ public sealed class GameLauncherService
             var javaw = Path.Combine(Path.GetDirectoryName(javaPath) ?? "", "javaw.exe");
             var executable = File.Exists(javaw) ? javaw : javaPath;
 
+            // ============================================================ LAUNCH DEBUG
+            AccountDiagnostics.Log("=== LAUNCH DEBUG ===");
+            AccountDiagnostics.Log($"  Java-Pfad:          {javaPath}");
+            AccountDiagnostics.Log($"  javaw.exe existiert: {File.Exists(javaw)}");
+            AccountDiagnostics.Log($"  Executable:         {executable}");
+            AccountDiagnostics.Log($"  WorkingDirectory:   {install.GameDirectory}");
+            AccountDiagnostics.Log($"  Classpath-Länge:    {classpath.Length}");
+            AccountDiagnostics.Log($"  Komplette Commandline:");
+            AccountDiagnostics.Log($"    {commandLine}");
+            AccountDiagnostics.Log("=== END LAUNCH DEBUG ===");
+            // ============================================================
+
             var psi = new ProcessStartInfo
             {
                 FileName = executable,
                 Arguments = commandLine,
                 WorkingDirectory = install.GameDirectory,
                 UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
             };
 
-            if (Process.Start(psi) is null)
+            // stdout/stderr asynchronously sammeln (verhindert Deadlock).
+            var stdoutBuilder = new System.Text.StringBuilder();
+            var stderrBuilder = new System.Text.StringBuilder();
+            psi.RedirectStandardOutput = true;
+            psi.RedirectStandardError = true;
+
+            AccountDiagnostics.Log("[LAUNCH] Process.Start() wird aufgerufen...");
+            var process = Process.Start(psi);
+            if (process is null)
+            {
+                AccountDiagnostics.Log("[LAUNCH] FEHLER: Process.Start() gab null zurück!");
                 return Fail("Home.GameLaunchFailed", "Prozess konnte nicht gestartet werden.");
+            }
+
+            process.OutputDataReceived += (_, e) => { if (e.Data is not null) stdoutBuilder.AppendLine(e.Data); };
+            process.ErrorDataReceived += (_, e) => { if (e.Data is not null) stderrBuilder.AppendLine(e.Data); };
+            process.BeginOutputReadLine();
+            process.BeginErrorReadLine();
+
+            AccountDiagnostics.Log($"[LAUNCH] Prozess gestartet! PID={process.Id}");
+
+            // Bis zu 15 Sekunden warten – wenn Minecraft danach noch läuft, ist es ein Success.
+            for (var i = 0; i < 15; i++)
+            {
+                await Task.Delay(1000, cancellationToken);
+                if (process.HasExited)
+                    break;
+            }
+
+            var stdout = stdoutBuilder.ToString();
+            var stderr = stderrBuilder.ToString();
+
+            if (!process.HasExited)
+            {
+                AccountDiagnostics.Log($"[LAUNCH] Prozess läuft nach 15s (PID={process.Id}). Erfolg!");
+                return new GameLaunchResult(true, "Home.GameStarted", [versionId]);
+            }
+
+            // Prozess hat sich beendet – Fehler analysieren.
+            var exitCode = process.ExitCode;
+            AccountDiagnostics.Log($"[LAUNCH] Prozess beendet. ExitCode={exitCode}");
+
+            if (!string.IsNullOrEmpty(stderr))
+                AccountDiagnostics.Log($"[LAUNCH] --- stderr (komplett) ---\n{stderr}");
+            if (!string.IsNullOrEmpty(stdout))
+                AccountDiagnostics.Log($"[LAUNCH] --- stdout (komplett) ---\n{stdout}");
+
+            // Crash-Reports und latest.log suchen.
+            var gameDir = install.GameDirectory;
+            var crashDir = Path.Combine(gameDir, "crash-reports");
+            if (Directory.Exists(crashDir))
+            {
+                var latestCrash = new DirectoryInfo(crashDir)
+                    .GetFiles("*.txt")
+                    .OrderByDescending(f => f.LastWriteTime)
+                    .FirstOrDefault();
+                if (latestCrash is not null)
+                    AccountDiagnostics.Log($"[LAUNCH] Neuester Crash-Report: {latestCrash.FullName}");
+            }
+
+            var latestLog = Path.Combine(gameDir, "logs", "latest.log");
+            if (File.Exists(latestLog))
+                AccountDiagnostics.Log($"[LAUNCH] latest.log: {latestLog}");
+
+            if (exitCode != 0)
+            {
+                // Erste Exception/NoClassDef im stderr extrahieren.
+                var firstError = ExtractFirstError(stderr) ?? ExtractFirstError(stdout);
+                AccountDiagnostics.Log($"[LAUNCH] Erster Fehler: {firstError ?? "(keiner gefunden)"}");
+                return Fail("Home.GameLaunchFailed", $"ExitCode {exitCode}: {firstError ?? "siehe account.log"}");
+            }
 
             return new GameLaunchResult(true, "Home.GameStarted", [versionId]);
         }
-        catch (Exception ex)
+        catch (System.ComponentModel.Win32Exception ex)
         {
+            AccountDiagnostics.Log($"[LAUNCH] Win32Exception: {ex.Message}");
+            AccountDiagnostics.Log($"[LAUNCH] ErrorCode: {ex.NativeErrorCode}");
+            AccountDiagnostics.Log($"[LAUNCH] Full: {ex}");
             return Fail("Home.GameLaunchFailed", ex.Message);
         }
+        catch (Exception ex)
+        {
+            AccountDiagnostics.Log($"[LAUNCH] Exception: {ex}");
+            return Fail("Home.GameLaunchFailed", ex.Message);
+        }
+    }
+
+    /// <summary>Sucht die erste Exception/Error-Zeile in einem Textblock.</summary>
+    private static string? ExtractFirstError(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return null;
+
+        foreach (var line in text.Split('\n'))
+        {
+            var trimmed = line.Trim();
+            if (trimmed.StartsWith("Exception in thread", StringComparison.OrdinalIgnoreCase) ||
+                trimmed.StartsWith("Caused by:", StringComparison.OrdinalIgnoreCase) ||
+                trimmed.StartsWith("Error:", StringComparison.OrdinalIgnoreCase) ||
+                trimmed.Contains("NoClassDefFoundError", StringComparison.OrdinalIgnoreCase) ||
+                trimmed.Contains("ClassNotFoundException", StringComparison.OrdinalIgnoreCase) ||
+                trimmed.Contains("Could not find", StringComparison.OrdinalIgnoreCase) ||
+                trimmed.Contains("cannot be cast to", StringComparison.OrdinalIgnoreCase))
+            {
+                return trimmed;
+            }
+        }
+        return null;
     }
 
     private static GameLaunchResult Fail(string messageKey, params object[] args)
@@ -122,18 +266,14 @@ public sealed class GameLauncherService
     /// Als Spielverzeichnis (Mods, Logs, Welten) dient das Instanz-Verzeichnis
     /// des aktiven Profils – Versionen/Libraries/Assets bleiben global.
     /// </summary>
-    private static GameInstallation? ResolveInstallation(LauncherSettings settings, string versionId)
+    private static GameInstallation? ResolveInstallation(LauncherSettings settings, string versionId, LauncherProfile? activeProfile)
     {
         var root = settings.GameDirectory;
-        var ownVersion = Path.Combine(root, "versions", versionId);
         var official = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), ".minecraft");
 
-        var versionDirectory = File.Exists(Path.Combine(ownVersion, versionId + ".json"))
-            ? ownVersion
-            : Directory.Exists(Path.Combine(official, "versions", versionId))
-                ? Path.Combine(official, "versions", versionId)
-                : null;
+        // Version-Verzeichnis: bei Fabric zuerst Fabric-Version suchen, sonst eigene Version.
+        var versionDirectory = FindVersionDirectory(root, official, versionId, settings.ModLoader);
 
         if (versionDirectory is null)
             return null;
@@ -153,24 +293,148 @@ public sealed class GameLauncherService
             ? Path.Combine(root, "assets")
             : Path.Combine(official, "assets");
 
-        return new GameInstallation(settings.InstanceDirectory, versionDirectory, librariesDirectory, assetsDirectory);
+        // Instanz-Verzeichnis: Profil-Verzeichnis wenn Profil vorhanden, sonst Fallback.
+        var instanceDirectory = activeProfile is { } profile
+            ? Path.Combine(root, "profiles", LauncherSettings.SanitizeFolderName(profile.Name))
+            : settings.InstanceDirectory;
+
+        return new GameInstallation(instanceDirectory, versionDirectory, librariesDirectory, assetsDirectory);
+    }
+
+    /// <summary>
+    /// Sucht das Version-Verzeichnis. Bei Fabric wird zuerst die Fabric-Version
+    /// (fabric-loader-*-{versionId}) gesucht, dann eigene Version, dann .minecraft.
+    /// </summary>
+    private static string? FindVersionDirectory(string root, string official, string versionId, string? modLoader)
+    {
+        var isFabric = string.Equals(modLoader, "fabric", StringComparison.OrdinalIgnoreCase);
+        var versionsDir = Path.Combine(root, "versions");
+
+        // Bei Fabric: ZUERST nach Fabric-Version suchen.
+        if (isFabric && Directory.Exists(versionsDir))
+        {
+            var suffix = $"-{versionId}";
+            foreach (var dir in Directory.EnumerateDirectories(versionsDir))
+            {
+                var name = Path.GetFileName(dir);
+                if (name.StartsWith("fabric-loader-", StringComparison.OrdinalIgnoreCase) &&
+                    name.EndsWith(suffix, StringComparison.OrdinalIgnoreCase) &&
+                    File.Exists(Path.Combine(dir, name + ".json")))
+                {
+                    return dir;
+                }
+            }
+        }
+
+        // Eigene Version (z.B. games/versions/26.2/26.2.json)
+        var ownVersion = Path.Combine(root, "versions", versionId);
+        if (File.Exists(Path.Combine(ownVersion, versionId + ".json")))
+            return ownVersion;
+
+        // Fabric-Version als Fallback (falls oben nicht gefunden)
+        if (!isFabric && Directory.Exists(versionsDir))
+        {
+            var suffix = $"-{versionId}";
+            foreach (var dir in Directory.EnumerateDirectories(versionsDir))
+            {
+                var name = Path.GetFileName(dir);
+                if (name.StartsWith("fabric-loader-", StringComparison.OrdinalIgnoreCase) &&
+                    name.EndsWith(suffix, StringComparison.OrdinalIgnoreCase) &&
+                    File.Exists(Path.Combine(dir, name + ".json")))
+                {
+                    return dir;
+                }
+            }
+        }
+
+        // .minecraft Fallback
+        var officialVersion = Path.Combine(official, "versions", versionId);
+        if (Directory.Exists(officialVersion))
+            return officialVersion;
+
+        return null;
     }
 
     private static VersionJson? LoadVersionJson(string versionDirectory, string versionId)
     {
         try
         {
+            // Zuerst mit dem eigenen Namen suchen (z.B. 26.2.json).
             var path = Path.Combine(versionDirectory, versionId + ".json");
+
+            // Fallback: Die erste .json-Datei im Verzeichnis (z.B. fabric-loader-*.json).
+            if (!File.Exists(path) && Directory.Exists(versionDirectory))
+            {
+                var jsonFiles = Directory.GetFiles(versionDirectory, "*.json");
+                if (jsonFiles.Length > 0)
+                    path = jsonFiles[0];
+            }
+
             if (!File.Exists(path))
                 return null;
 
             var json = File.ReadAllText(path);
-            return JsonSerializer.Deserialize<VersionJson>(json);
+            var versionJson = JsonSerializer.Deserialize<VersionJson>(json);
+            if (versionJson is null)
+                return null;
+
+            // inheritsFrom auflösen: Eltern-Version laden und Libraries mergen.
+            if (!string.IsNullOrEmpty(versionJson.InheritsFrom))
+            {
+                var parentJson = LoadParentVersionJson(versionJson.InheritsFrom);
+                if (parentJson is not null)
+                {
+                    // Eltern-Libraries zuerst, dann Fabric-Libs (keine Duplikate nach Name).
+                    var mergedLibraries = new List<LibraryEntry>(parentJson.Libraries);
+                    foreach (var childLib in versionJson.Libraries)
+                    {
+                        if (!mergedLibraries.Any(l => l.Name == childLib.Name))
+                            mergedLibraries.Add(childLib);
+                    }
+                    versionJson.Libraries = mergedLibraries;
+
+                    // Felder vom Elternteil übernehmen, falls nicht vorhanden.
+                    versionJson.AssetIndex ??= parentJson.AssetIndex;
+                    versionJson.Logging ??= parentJson.Logging;
+                    versionJson.JavaVersion ??= parentJson.JavaVersion;
+
+                    // Argumente mergen: Parent-JVM-Args zuerst (-cp, -D, etc.), dann Child-Args.
+                    if (parentJson.Arguments is { } parentArgs)
+                    {
+                        versionJson.Arguments ??= new ArgumentsSection();
+
+                        var mergedJvm = new List<JsonElement>(parentArgs.Jvm);
+                        mergedJvm.AddRange(versionJson.Arguments.Jvm);
+                        versionJson.Arguments.Jvm = mergedJvm;
+
+                        var mergedGame = new List<JsonElement>(parentArgs.Game);
+                        mergedGame.AddRange(versionJson.Arguments.Game);
+                        versionJson.Arguments.Game = mergedGame;
+                    }
+                }
+            }
+
+            return versionJson;
         }
         catch
         {
             return null;
         }
+    }
+
+    /// <summary>Lädt die Eltern-Version-JSON für inheritsFrom aus .minecraft.</summary>
+    private static VersionJson? LoadParentVersionJson(string parentId)
+    {
+        var official = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            ".minecraft", "versions", parentId);
+        var jsonPath = Path.Combine(official, parentId + ".json");
+
+        if (!File.Exists(jsonPath))
+            return null;
+
+        var json = File.ReadAllText(jsonPath);
+        return JsonSerializer.Deserialize<VersionJson>(json);
     }
 
     // ------------------------------------------------------------ Java
@@ -254,6 +518,17 @@ public sealed class GameLauncherService
         missingLibraries = 0;
 
         var clientJar = Path.Combine(install.VersionDirectory, versionId + ".jar");
+
+        // Fallback: Client-JAR im .minecraft suchen (Fabric-Versionen haben kein eigenes .jar).
+        if (!File.Exists(clientJar))
+        {
+            var officialJar = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                ".minecraft", "versions", versionId, versionId + ".jar");
+            if (File.Exists(officialJar))
+                clientJar = officialJar;
+        }
+
         if (File.Exists(clientJar))
             paths.Add(clientJar);
         else
@@ -273,6 +548,31 @@ public sealed class GameLauncherService
                 else
                     missingLibraries++;
                 continue;
+            }
+
+            // Maven-Name-basierte Auflösung (für Fabric/Forge-Bibliotheken ohne downloads.artifact).
+            if (!string.IsNullOrEmpty(library.Name))
+            {
+                var mavenPath = MavenNameToPath(library.Name);
+                if (!string.IsNullOrEmpty(mavenPath))
+                {
+                    var fullPath = Path.Combine(install.LibrariesDirectory, mavenPath);
+                    if (File.Exists(fullPath))
+                    {
+                        paths.Add(fullPath);
+                        continue;
+                    }
+
+                    // Fallback: Im .minecraft libraries suchen.
+                    var officialLib = Path.Combine(
+                        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                        ".minecraft", "libraries", mavenPath);
+                    if (File.Exists(officialLib))
+                    {
+                        paths.Add(officialLib);
+                        continue;
+                    }
+                }
             }
 
             // Natives-Classifier für Windows: wird seit 1.17 als JAR mit auf den
@@ -497,6 +797,24 @@ public sealed class GameLauncherService
             return false;
 
         return true;
+    }
+
+    // ------------------------------------------------------------ Maven
+
+    /// <summary>Konvertiert Maven-Koordinaten in einen Dateipfad.</summary>
+    /// <example>"org.ow2.asm:asm:9.8" → "org/ow2/asm/asm/9.8/asm-9.8.jar"</example>
+    private static string MavenNameToPath(string name)
+    {
+        var parts = name.Split(':');
+        if (parts.Length < 3)
+            return "";
+
+        var groupId = parts[0].Replace('.', '/');
+        var artifactId = parts[1];
+        var version = parts[2];
+        var classifier = parts.Length > 3 ? $"-{parts[3]}" : "";
+
+        return $"{groupId}/{artifactId}/{version}/{artifactId}-{version}{classifier}.jar";
     }
 
     // ------------------------------------------------------------ Token & Zitat

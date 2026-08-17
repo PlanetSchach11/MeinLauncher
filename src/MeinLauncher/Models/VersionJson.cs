@@ -38,6 +38,13 @@ public sealed class VersionJson
     /// <summary>Typ der Version, z. B. "release" (für --versionType).</summary>
     [JsonPropertyName("type")]
     public string Type { get; set; } = "release";
+
+    /// <summary>
+    /// Eltern-Version, von der geerbt wird (z.B. "26.2" für Fabric-Versionen).
+    /// Wird vom Launcher aufgelöst: Libraries werden gemerget.
+    /// </summary>
+    [JsonPropertyName("inheritsFrom")]
+    public string? InheritsFrom { get; set; }
 }
 
 public sealed class DownloadsSection
@@ -107,6 +114,10 @@ public sealed class LibraryEntry
     /// <summary>Betriebssystem → Classifier, z. B. "windows" → "natives-windows".</summary>
     [JsonPropertyName("natives")]
     public Dictionary<string, string>? Natives { get; set; }
+
+    /// <summary>Maven-Repository-URL (z.B. für Fabric/Forge-Bibliotheken).</summary>
+    [JsonPropertyName("url")]
+    public string? Url { get; set; }
 }
 
 public sealed class LibraryDownloads

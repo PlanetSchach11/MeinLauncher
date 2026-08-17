@@ -9,3 +9,4 @@ session.bin
 account.log
 *.log
 games/
+*.zip

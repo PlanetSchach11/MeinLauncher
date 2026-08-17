@@ -106,7 +106,17 @@ public partial class HomeViewModel : ViewModelBase
         StatusMessage = t("Home.StartingGame");
         try
         {
-            var result = await _gameLauncher.LaunchAsync(_settingsService.Current);
+            var s = _settingsService.Current;
+            var activeProfile = s.ActiveProfile;
+            if (activeProfile is null && s.Profiles.Count > 0)
+            {
+                activeProfile = s.Profiles[0];
+                _profileService.ApplyProfile(activeProfile);
+                OnPropertyChanged(nameof(ActiveProfileName));
+                OnPropertyChanged(nameof(ActiveProfileLine));
+            }
+
+            var result = await _gameLauncher.LaunchAsync(s, activeProfile);
             AccountDiagnostics.Log(
                 $"PlayAsync: Ergebnis '{result.MessageKey}' (Success: {result.Success}).");
             StatusMessage = t(result.MessageKey, result.Args);

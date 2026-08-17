@@ -557,7 +557,17 @@ public partial class ProfileViewModel : ViewModelBase
         StatusMessage = t("Home.StartingGame");
         try
         {
-            var result = await _gameLauncher.LaunchAsync(_settingsService.Current);
+            var s = _settingsService.Current;
+            var activeProfile = s.ActiveProfile;
+            if (activeProfile is null && s.Profiles.Count > 0)
+            {
+                activeProfile = s.Profiles[0];
+                _profileService.ApplyProfile(activeProfile);
+                OnPropertyChanged(nameof(ActiveProfileName));
+                RefreshOverview();
+            }
+
+            var result = await _gameLauncher.LaunchAsync(s, activeProfile);
             AccountDiagnostics.Log(
                 $"ProfileViewModel.PlayAsync: Ergebnis '{result.MessageKey}' (Success: {result.Success}).");
             StatusMessage = t(result.MessageKey, result.Args);
