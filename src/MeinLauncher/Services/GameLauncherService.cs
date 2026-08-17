@@ -20,12 +20,12 @@ public sealed record GameLaunchResult(bool Success, string MessageKey, object[] 
 ///
 /// Es werden ausschließlich die eigenen Einstellungen und die selbst angemeldete
 /// Microsoft-Session verwendet. Die Versionsdateien (jar/json) kommen aus dem
-/// MeinLauncher-Spielverzeichnis; Libraries, Assets und Java-Runtime werden bei
+/// Kulka Client-Spielverzeichnis; Libraries, Assets und Java-Runtime werden bei
 /// Bedarf aus der vorhandenen offiziellen Installation (.minecraft) ergänzt.
 /// </summary>
 public sealed class GameLauncherService
 {
-    private const string LauncherName = "meinlauncher";
+    private const string LauncherName = "kulkaclient";
     private const string LauncherVersion = "0.1.0";
 
     /// <summary>App-Familienname der Store-Version des offiziellen Launchers (nur Pfad-Auflösung).</summary>
@@ -116,9 +116,9 @@ public sealed class GameLauncherService
         string AssetsDirectory);
 
     /// <summary>
-    /// Sucht die Versionsdateien zuerst im MeinLauncher-Spielverzeichnis und
+    /// Sucht die Versionsdateien zuerst im Kulka Client-Spielverzeichnis und
     /// danach in der offiziellen Installation (%APPDATA%\.minecraft).
-    /// Libraries/Assets werden pro Ordner aufgelöst (MeinLauncher → .minecraft).
+    /// Libraries/Assets werden pro Ordner aufgelöst (Kulka Client → .minecraft).
     /// Als Spielverzeichnis (Mods, Logs, Welten) dient das Instanz-Verzeichnis
     /// des aktiven Profils – Versionen/Libraries/Assets bleiben global.
     /// </summary>

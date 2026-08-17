@@ -479,10 +479,10 @@ public sealed class LocalizationManager : INotifyPropertyChanged
         ["Home.InstalledVersions"] = new("Installierte Versionen", "Installed versions"),
         ["Home.ModsInFolder"] = new("Mods im Ordner", "Mods in folder"),
         ["Home.ActivePlayer"] = new("Aktiver Spielername", "Active player name"),
-        ["Home.AboutTitle"] = new("Über Pickle Launcher", "About Pickle Launcher"),
+        ["Home.AboutTitle"] = new("Über Kulka Client", "About Kulka Client"),
         ["Home.AboutText"] = new(
-            "Pickle Launcher ist dein eigener Minecraft Launcher. Der Prototyp lädt die Versionsliste von Mojang, installiert ausgewählte Versionen, verwaltet Mods und Einstellungen und startet Minecraft direkt über deine Microsoft-Anmeldung – ganz ohne den offiziellen Launcher. Weitere Funktionen sind bereits vorbereitet.",
-            "Pickle Launcher is your own Minecraft launcher. The prototype loads the version list from Mojang, installs selected versions, manages mods and settings and launches Minecraft directly with your Microsoft sign-in – without the official launcher. More features are already prepared."),
+            "Kulka Client ist dein eigener Minecraft Launcher. Der Prototyp lädt die Versionsliste von Mojang, installiert ausgewählte Versionen, verwaltet Mods und Einstellungen und startet Minecraft direkt über deine Microsoft-Anmeldung – ganz ohne den offiziellen Launcher. Weitere Funktionen sind bereits vorbereitet.",
+            "Kulka Client is your own Minecraft launcher. The prototype loads the version list from Mojang, installs selected versions, manages mods and settings and launches Minecraft directly with your Microsoft sign-in – without the official launcher. More features are already prepared."),
         ["Home.Profile"] = new("Profil", "Profile"),
         ["Home.ProfileStandard"] = new("Standard", "Default"),
         ["Home.ProfileNew"] = new("Neu", "New"),

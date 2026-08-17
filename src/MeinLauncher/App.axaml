@@ -20,6 +20,6 @@
 
     <Application.Styles>
         <FluentTheme />
-        <StyleInclude Source="avares://MeinLauncher/Styles/Controls.axaml" />
+        <StyleInclude Source="avares://KulkaClient/Styles/Controls.axaml" />
     </Application.Styles>
 </Application>

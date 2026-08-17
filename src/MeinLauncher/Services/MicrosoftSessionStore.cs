@@ -13,6 +13,7 @@ namespace MeinLauncher.Services;
 /// CurrentUser) verschlüsselt in <c>%APPDATA%\MeinLauncher\session.bin</c> abgelegt.
 /// DPAPI bindet die Daten an das Windows-Benutzerkonto – ein anderer Benutzer
 /// kann sie nicht entschlüsseln. Es werden keine Daten des offiziellen Launchers gelesen.
+/// Die Einstellungen liegen weiterhin unter dem Pfad "MeinLauncher" (Rückwärtskompatibilität).
 /// </summary>
 public sealed class MicrosoftSessionStore
 {
@@ -150,7 +151,7 @@ internal static class Dpapi
         {
             Marshal.Copy(data, 0, input.PbData, data.Length);
 
-            if (!CryptProtectData(ref input, "MeinLauncher Microsoft Session", IntPtr.Zero,
+            if (!CryptProtectData(ref input, "Kulka Client Microsoft Session", IntPtr.Zero,
                     IntPtr.Zero, IntPtr.Zero, CryptProtectUiForbidden, out var output))
             {
                 throw new InvalidOperationException(

@@ -101,7 +101,7 @@ public sealed class UISoundService
         if (_wavPath is not null && _wavVolume == volume && File.Exists(_wavPath))
             return;
 
-        var dir = Path.Combine(Path.GetTempPath(), "PickleLauncher");
+        var dir = Path.Combine(Path.GetTempPath(), "KulkaClient");
         Directory.CreateDirectory(dir);
         var path = Path.Combine(dir, "ui_click.wav");
 

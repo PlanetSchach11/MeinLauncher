@@ -40,7 +40,7 @@ public sealed class NewsService
     public NewsService()
     {
         _http = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
-        _http.DefaultRequestHeaders.UserAgent.ParseAdd("PickleLauncher/0.1.0 (News; personal use)");
+        _http.DefaultRequestHeaders.UserAgent.ParseAdd("KulkaClient/0.1.0 (News; personal use)");
         _http.DefaultRequestHeaders.Accept.ParseAdd("application/atom+xml, application/xml, text/xml");
     }
 

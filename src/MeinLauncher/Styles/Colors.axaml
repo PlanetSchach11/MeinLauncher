@@ -14,7 +14,7 @@
         </ResourceDictionary>
     </ResourceDictionary.ThemeDictionaries>
 
-    <!-- MeinLauncher-Palette -->
+    <!-- Kulka Client Palette -->
     <SolidColorBrush x:Key="BgWindow" Color="#14161A" />
     <SolidColorBrush x:Key="BgSidebar" Color="#0F1114" />
     <SolidColorBrush x:Key="BgCard" Color="#1B1E23" />

@@ -109,7 +109,7 @@ public sealed class MicrosoftAuthService
     private static HttpClient CreateHttpClient()
     {
         var client = new HttpClient { Timeout = TimeSpan.FromSeconds(60) };
-        client.DefaultRequestHeaders.UserAgent.ParseAdd("MeinLauncher/0.1.0");
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("KulkaClient/0.1.0");
         return client;
     }
 

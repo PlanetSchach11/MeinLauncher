@@ -146,6 +146,10 @@ public partial class MainViewModel : ViewModelBase
             RefreshBackground, NotifyBackgroundChanged);
         // Beim Öffnen mit den Einstellungen des (ggf. gewechselten) aktiven Profils abgleichen.
         _settingsVm.LoadFromSettings();
+        // Kategorie-Übersicht zurücksetzen: Das View wird vom ViewLocator bei jeder
+        // Navigation neu erstellt (leerer SectionHost), daher muss der ViewModel-State
+        // harmonieren – CurrentSection auf null, damit die Übersicht gezeigt wird.
+        _settingsVm.CurrentSection = null;
         return _settingsVm;
     }
 
