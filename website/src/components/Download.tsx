@@ -24,7 +24,7 @@ export default function Download() {
           </p>
 
           <a
-            href="https://github.com/PlanetSchach11/MeinLauncher/releases/download/v0.2.0/KulkaClient-v0.1.0-win-x64.zip"
+            href="/download/KulkaClient-v0.2.0-win-x64.zip"
             className="btn btn-primary"
             style={{ fontSize: '1.0625rem', padding: '16px 40px' }}
           >
