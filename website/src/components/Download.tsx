@@ -15,7 +15,7 @@ export default function Download() {
 
         <div className={`download-card card reveal${isVisible ? ' visible' : ''}`} style={{ transitionDelay: '150ms' }}>
           <div className="download-version">
-            v0.1.0
+            v0.2.0
           </div>
 
           <p style={{ color: 'var(--text-secondary)', marginBottom: '32px', lineHeight: '1.7' }}>
@@ -24,7 +24,7 @@ export default function Download() {
           </p>
 
           <a
-            href="https://github.com/PlanetSchach11/MeinLauncher/releases/download/v0.1.0/KulkaClient-v0.1.0-win-x64.zip"
+            href="https://github.com/PlanetSchach11/MeinLauncher/releases/download/v0.2.0/KulkaClient-v0.1.0-win-x64.zip"
             className="btn btn-primary"
             style={{ fontSize: '1.0625rem', padding: '16px 40px' }}
           >
@@ -35,7 +35,7 @@ export default function Download() {
           <div className="download-specs">
             <span className="download-spec">Windows 10 / 11</span>
             <span className="download-spec">x64</span>
-            <span className="download-spec">ca. 30 MB</span>
+            <span className="download-spec">ca. 71 MB</span>
             <span className="download-spec">Kostenlos</span>
           </div>
 
