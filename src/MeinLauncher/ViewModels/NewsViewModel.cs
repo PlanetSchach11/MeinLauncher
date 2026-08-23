@@ -1,6 +1,7 @@
 using System;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -10,15 +11,15 @@ namespace MeinLauncher.ViewModels;
 
 /// <summary>
 /// News-Seite: zeigt die neuesten öffentlichen Uploads von @ANG3L0WW (offizieller
-/// YouTube-RSS-Feed, kein Scraping). Beim Öffnen wird geprüft, ob neue Videos da sind,
-/// und sie werden als „gesehen“ markiert (lokaler Ungelesen-Punkt in der Seitenleiste).
-/// Fehler (offline, YouTube nicht erreichbar, Timeout, ungültige Daten) führen zu einer
-/// freundlichen Meldung mit „Erneut versuchen“ – nie zu einem Absturz.
+/// YouTube-RSS-Feed, kein Scraping). Ein periodischer Timer prüft alle 5 Minuten auf
+/// neue Videos und zeigt automatisch den roten Punkt – ohne dass die Seite geöffnet
+/// werden muss. Beim Öffnen der Seite werden die Videos als „gesehen" markiert.
 /// </summary>
 public partial class NewsViewModel : ViewModelBase
 {
     private readonly SettingsService _settingsService;
     private readonly NewsService _newsService = new();
+    private Timer? _pollTimer;
 
     private NewsFetchResult? _lastResult;
     private Task<NewsFetchResult?>? _inFlight;
@@ -73,6 +74,10 @@ public partial class NewsViewModel : ViewModelBase
                 video.PublishedLabel = FormatTimeAgo(video);
             OnPropertyChanged(nameof(HeroChannelLine));
         };
+
+        // Alle 5 Minuten auf neue Videos prüfen (auch wenn die Seite nicht offen ist).
+        _pollTimer = new Timer(_ => _ = CheckForNewVideosAsync(), null,
+            TimeSpan.FromMinutes(5), TimeSpan.FromMinutes(5));
     }
 
     /// <summary>
@@ -211,7 +216,7 @@ public partial class NewsViewModel : ViewModelBase
             return t("News.HourAgo", Math.Max(1, (int)diff.TotalHours));
         if (diff < TimeSpan.FromDays(7))
             return t("News.DaysAgo", Math.Max(1, (int)diff.TotalDays));
-        return item.PublishedUtc.ToLocalTime().ToString("dd.MM.yyyy");
+        return item.PublishedUtc.ToLocalTime().ToString("d");
     }
 
     [RelayCommand]

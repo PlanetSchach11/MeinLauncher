@@ -15,7 +15,7 @@ export default function Hero() {
           <div className={`hero-text reveal${isVisible ? ' visible' : ''}`}>
             <div className="hero-badge">
               <span className="hero-badge-dot" aria-hidden="true" />
-              v0.1.0
+              v1.0.0
             </div>
 
             <h1 className="hero-title">

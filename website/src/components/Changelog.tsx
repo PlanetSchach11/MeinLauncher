@@ -2,6 +2,40 @@ import { useInView } from '../hooks/useInView';
 
 const CHANGELOG = [
   {
+    version: 'v1.0.0',
+    date: '23. August 2026',
+    categories: [
+      {
+        label: 'NEW',
+        type: 'new' as const,
+        items: [
+          'Kulka Client Mod (kulka-client-1.0.0.jar) — wird automatisch bei jedem Start deployed',
+          'Kulka Client Integration für Cross-Server-Spielererkennung',
+          'FPS-Zähler im HUD',
+          'Periodischer News-Check alle 5 Minuten mit rotem Punkt',
+        ],
+      },
+      {
+        label: 'IMPROVED',
+        type: 'improved' as const,
+        items: [
+          'Vollständige Lokalisierung (Deutsch/Englisch) für alle UI-Strings',
+          'Performance-Verbesserungen im Hintergrundrenderer (~93% weniger Fills)',
+          'Desktop-Symbol aktualisiert',
+        ],
+      },
+      {
+        label: 'FIXED',
+        type: 'fixed' as const,
+        items: [
+          'Debug-Texte und Prototyp-Markierung entfernt',
+          'Cross-Thread-Sicherheit für Thumbnail-Laden und Unread-Status',
+          'Token-Leck in Debug-Logs behoben',
+        ],
+      },
+    ],
+  },
+  {
     version: 'v0.1.0',
     date: 'Platzhalter – Veröffentlichungsdatum',
     categories: [

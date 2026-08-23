@@ -73,6 +73,15 @@ public partial class ModsView : UserControl
         }
     }
 
+    private void OnCurseForgeInstallClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is Button { Tag: Models.CurseForgeModItem item } &&
+            DataContext is ViewModels.ModsViewModel vm)
+        {
+            vm.InstallFromCurseForgeCommand.Execute(item);
+        }
+    }
+
     private void OnSearchKeyDown(object? sender, KeyEventArgs e)
     {
         if (e.Key != Key.Enter || DataContext is not ViewModels.ModsViewModel vm)

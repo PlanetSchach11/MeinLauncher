@@ -2,8 +2,11 @@ using System;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using Avalonia.Media.Imaging;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using MeinLauncher.Models;
 using MeinLauncher.Services;
 
@@ -21,12 +24,14 @@ public partial class MainViewModel : ViewModelBase
     private readonly MojangVersionService _versionService;
     private readonly ModService _modService;
     private readonly ProfileService _profileService;
+    private readonly UpdateService _updateService;
 
     private HomeViewModel? _home;
     private ProfileViewModel? _profile;
     private SettingsViewModel? _settingsVm;
     private NewsViewModel? _news;
-    private bool _newsOpened;
+    private UpdateInfo? _pendingUpdate;
+    private string? _pendingExtractedDir;
 
     [ObservableProperty]
     public partial ObservableCollection<NavItem> NavItems { get; set; } = [];
@@ -42,6 +47,32 @@ public partial class MainViewModel : ViewModelBase
 
     /// <summary>Dezente Einblendung des Hintergrundbilds (keine Ablenkung).</summary>
     public double BackgroundOpacity => 0.55;
+
+    /// <summary>Aktuelle Launcher-Version für UI-Anzeige.</summary>
+    public string Version => $"Kulka Client v{AppVersion.Current}";
+
+    // --- Update ---
+
+    [ObservableProperty]
+    public partial bool IsUpdateAvailable { get; set; }
+
+    [ObservableProperty]
+    public partial string? UpdateVersion { get; set; }
+
+    /// <summary>Lokalisierte Update-Nachricht mit Version.</summary>
+    public string UpdateText => L.UpdateAvailable.Replace("{0}", UpdateVersion ?? "?");
+
+    [ObservableProperty]
+    public partial bool IsDownloading { get; set; }
+
+    [ObservableProperty]
+    public partial double DownloadProgress { get; set; }
+
+    [ObservableProperty]
+    public partial bool IsUpdateError { get; set; }
+
+    [ObservableProperty]
+    public partial string? UpdateErrorMessage { get; set; }
 
     public bool HasBackgroundImage => BackgroundImage is not null;
 
@@ -63,6 +94,7 @@ public partial class MainViewModel : ViewModelBase
         _versionService = new MojangVersionService();
         _modService = new ModService();
         _profileService = new ProfileService(settingsService);
+        _updateService = new UpdateService();
 
         var homeItem = new NavItem("Nav.Start", Icons.Home, CreateHome);
         var profileItem = new NavItem("Nav.Profile", Icons.Profile, CreateProfile);
@@ -73,11 +105,16 @@ public partial class MainViewModel : ViewModelBase
         SelectedNavItem = homeItem;
 
         // News-Status beim Start prüfen: roter Punkt, sobald neue Uploads bekannt sind.
-        // Erst das Öffnen der News-Seite markiert sie als „gesehen“ und setzt den Punkt zurück.
+        // Ein periodischer Timer im NewsViewModel prüft alle 5 Minuten erneut.
         _news = new NewsViewModel(_settingsService);
         _news.UnreadStateChanged += unread =>
-            newsItem.HasUnread = _newsOpened ? false : unread;
+            Dispatcher.UIThread.Post(() => newsItem.HasUnread = unread);
         _ = _news.CheckForNewVideosAsync();
+
+        // Update-Check im Hintergrund (blockiert den Launcher nicht).
+        // Store-Versionen (MSIX) überspringen dies – Store-Updates ersetzen den Auto-Updater.
+        if (!UpdateService.IsStorePackage)
+            _ = CheckForUpdateInBackgroundAsync();
 
         LocalizationManager.Instance.LanguageChanged += () =>
         {
@@ -155,7 +192,6 @@ public partial class MainViewModel : ViewModelBase
 
     private ViewModelBase CreateNews()
     {
-        _newsOpened = true;
         _news ??= new NewsViewModel(_settingsService);
         _news.OnOpened();
         return _news;
@@ -170,5 +206,70 @@ public partial class MainViewModel : ViewModelBase
     {
         if (value is not null)
             CurrentPage = value.Factory();
+    }
+
+    partial void OnUpdateVersionChanged(string? value)
+    {
+        OnPropertyChanged(nameof(UpdateText));
+    }
+
+    // --------------------------------------------------------- Auto-Update
+
+    private async System.Threading.Tasks.Task CheckForUpdateInBackgroundAsync()
+    {
+        try
+        {
+            var update = await _updateService.CheckForUpdateAsync();
+            if (update is { IsAvailable: true })
+            {
+                _pendingUpdate = update;
+                UpdateVersion = update.RemoteVersion;
+                IsUpdateAvailable = true;
+            }
+        }
+        catch
+        {
+            // Offline / Fehler → still weitermachen.
+        }
+    }
+
+    [RelayCommand]
+    private async System.Threading.Tasks.Task DownloadUpdateAsync()
+    {
+        if (UpdateService.IsStorePackage)
+            return; // Store-Updates übernehmen das.
+        if (_pendingUpdate is not { DownloadUrl: not null })
+            return;
+
+        IsDownloading = true;
+        IsUpdateError = false;
+        UpdateErrorMessage = null;
+        DownloadProgress = 0;
+
+        try
+        {
+            var progress = new Progress<double>(p => DownloadProgress = p);
+            var extractedDir = await _updateService.DownloadAndExtractAsync(
+                _pendingUpdate, progress, CancellationToken.None);
+
+            _pendingExtractedDir = extractedDir;
+            IsDownloading = false;
+
+            // Sofort installieren und neustarten.
+            UpdateService.StartUpdateAndExit(extractedDir);
+        }
+        catch (Exception ex)
+        {
+            IsDownloading = false;
+            IsUpdateError = true;
+            UpdateErrorMessage = L.UpdateFailed.Replace("{0}", ex.Message);
+        }
+    }
+
+    [RelayCommand]
+    private void DismissUpdate()
+    {
+        IsUpdateAvailable = false;
+        _pendingUpdate = null;
     }
 }

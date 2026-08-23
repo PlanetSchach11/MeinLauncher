@@ -4,9 +4,19 @@ obj/
 .idea/
 *.user
 *.suo
+*.zip
+*.pdb
+
+# User data (NEVER commit)
 settings.json
 session.bin
 account.log
 *.log
 games/
-*.zip
+
+# Dev/build artifacts
+installer/
+mappings/
+META-INF/
+net/
+*.nupkg

@@ -47,6 +47,22 @@
                     </WrapPanel>
                 </StackPanel>
             </Border>
+
+            <!-- CurseForge API-Schlüssel (deaktiviert – wird später aktiviert) -->
+            <Border Classes="card" Padding="26" MinWidth="360" MaxWidth="430" IsVisible="False">
+                <StackPanel Spacing="10">
+
+                    <TextBlock Text="{Binding L.SettingsCurseForgeApiKey}" Classes="section" />
+
+                    <TextBlock Text="{Binding L.SettingsCurseForgeApiKeyHint}" Classes="fieldlabel" Margin="0,6,0,0"
+                               TextWrapping="Wrap" />
+                    <TextBox Text="{Binding CurseForgeApiKey}"
+                             PlaceholderText="$2a$..."
+                             MinWidth="240" />
+                    <TextBlock Classes="subtle" FontSize="11" TextWrapping="Wrap"
+                               Text="{Binding L.SettingsCurseForgeApiKeyInfo}" />
+                </StackPanel>
+            </Border>
         </WrapPanel>
     </ScrollViewer>
 </UserControl>

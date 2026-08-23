@@ -290,21 +290,16 @@ public partial class ProfileViewModel : ViewModelBase
             _renameTarget = null;
     }
 
-    /// <summary>Baut die Profil-Liste neu auf (Standard + alle Profile).</summary>
+    /// <summary>Baut die Profil-Liste neu auf (nur echte Profile, kein Standard).</summary>
     private void RebuildProfiles()
     {
         var selectedId = _profileService.Settings.SelectedProfileId;
 
         ProfileItems.Clear();
-        ProfileItems.Add(new ProfileItem(null)
-        {
-            IsActive = string.IsNullOrEmpty(selectedId),
-        });
         foreach (var profile in _profileService.Settings.Profiles)
             ProfileItems.Add(new ProfileItem(profile) { IsActive = profile.Id == selectedId });
 
-        SelectedProfile = ProfileItems.FirstOrDefault(i => !i.IsDefault && i.Profile?.Id == selectedId)
-                          ?? ProfileItems[0];
+        SelectedProfile = ProfileItems.FirstOrDefault(i => i.Profile?.Id == selectedId);
     }
 
     /// <summary>Setzt die IsActive-Markierung der Chips auf das aktive Profil.</summary>
@@ -312,9 +307,7 @@ public partial class ProfileViewModel : ViewModelBase
     {
         var selectedId = _profileService.Settings.SelectedProfileId;
         foreach (var item in ProfileItems)
-            item.IsActive = item.IsDefault
-                ? string.IsNullOrEmpty(selectedId)
-                : item.Profile?.Id == selectedId;
+            item.IsActive = item.Profile?.Id == selectedId;
     }
 
     [RelayCommand]

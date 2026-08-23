@@ -26,7 +26,8 @@ public sealed record GameLaunchResult(bool Success, string MessageKey, object[] 
 public sealed class GameLauncherService
 {
     private const string LauncherName = "kulkaclient";
-    private const string LauncherVersion = "0.1.0";
+    private static readonly string LauncherVersion = AppVersion.Current;
+    private static readonly System.Net.Http.HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(30) };
 
     /// <summary>App-Familienname der Store-Version des offiziellen Launchers (nur Pfad-Auflösung).</summary>
     private const string StoreFamily = "Microsoft.4297127D64EC6_8wekyb3d8bbwe";
@@ -46,6 +47,20 @@ public sealed class GameLauncherService
         if (string.IsNullOrWhiteSpace(versionId))
             return Fail("Home.NoVersionSelected");
 
+        // Bei Fabric: Prüfen ob die Fabric-Loader-Version existiert, sonst automatisch installieren.
+        if (string.Equals(settings.ModLoader, "fabric", StringComparison.OrdinalIgnoreCase))
+        {
+            var versionsDir = Path.Combine(settings.GameDirectory, "versions");
+            var librariesDir = Path.Combine(settings.GameDirectory, "libraries");
+            var fabricDir = await FabricInstallerService.EnsureFabricLoaderInstalledAsync(
+                versionId, versionsDir, librariesDir);
+            if (fabricDir is null && FindVersionDirectory(settings.GameDirectory, GetOfficialMinecraftDir(), versionId, "fabric") is null)
+            {
+                AccountDiagnostics.Log($"[FABRIC] Installation fehlgeschlagen oder nicht verfügbar für {versionId}.");
+                // Nicht abbrechen – resolveInstallation prüft nochmal.
+            }
+        }
+
         var install = ResolveInstallation(settings, versionId, activeProfile);
         if (install is null)
             return Fail("Home.VersionNotInstalled", versionId);
@@ -61,39 +76,14 @@ public sealed class GameLauncherService
             $"LaunchAsync: Session für den Start vorhanden ({session.MinecraftUsername}, " +
             $"Xuid: {(string.IsNullOrEmpty(session.Xuid) ? "leer" : "vorhanden")}).");
 
-        var versionJson = LoadVersionJson(install.VersionDirectory, versionId);
+        var versionJson = LoadVersionJson(install.VersionDirectory, versionId, settings.GameDirectory);
         if (versionJson is null || string.IsNullOrWhiteSpace(versionJson.MainClass))
             return Fail("Home.VersionDataError", versionId);
 
-        // ============================================================ MOD TEST
-        var modsDir = Path.Combine(install.GameDirectory, "mods");
-        var modFiles = Directory.Exists(modsDir)
-            ? Directory.GetFiles(modsDir, "*.jar", SearchOption.TopDirectoryOnly)
-            : Array.Empty<string>();
-        var isInherited = !string.IsNullOrEmpty(versionJson.InheritsFrom);
-        var loaderName = isInherited ? "Fabric (inheritsFrom: " + versionJson.InheritsFrom + ")" : "Vanilla";
-
-        AccountDiagnostics.Log("=== MOD TEST ===");
-        AccountDiagnostics.Log($"  Aktives Profil:     {(activeProfile is { } p ? p.Name : "(kein Profil)")}");
-        AccountDiagnostics.Log($"  Profil-ID:           {(activeProfile is { } p2 ? p2.Id : "n/a")}");
-        AccountDiagnostics.Log($"  Minecraft-Version:   {versionId}");
-        AccountDiagnostics.Log($"  Loader:              {loaderName}");
-        AccountDiagnostics.Log($"  GameDirectory:       {install.GameDirectory}");
-        AccountDiagnostics.Log($"  InstanceDirectory:   {install.GameDirectory}");
-        AccountDiagnostics.Log($"  VersionDirectory:    {install.VersionDirectory}");
-        AccountDiagnostics.Log($"  LibrariesDirectory:  {install.LibrariesDirectory}");
-        AccountDiagnostics.Log($"  AssetsDirectory:     {install.AssetsDirectory}");
-        AccountDiagnostics.Log($"  Mods-Ordner:         {modsDir}");
-        AccountDiagnostics.Log($"  Mods-Ordner existiert: {Directory.Exists(modsDir)}");
-        AccountDiagnostics.Log($"  Anzahl Mod-JARs:     {modFiles.Length}");
-        foreach (var mod in modFiles)
-            AccountDiagnostics.Log($"    - {Path.GetFileName(mod)}");
-        AccountDiagnostics.Log($"  Version-JSON:        {Path.Combine(install.VersionDirectory, Path.GetFileName(install.VersionDirectory) + ".json")}");
-        AccountDiagnostics.Log($"  MainClass:           {versionJson.MainClass}");
-        AccountDiagnostics.Log($"  Libraries (total):   {versionJson.Libraries.Count}");
-        AccountDiagnostics.Log($"  InheritsFrom:        {(isInherited ? versionJson.InheritsFrom : "(none)")}");
-        AccountDiagnostics.Log("=== END MOD TEST ===");
-        // ============================================================
+        // Fehlende Libraries aus Maven-Repositories herunterladen (z.B. inheritsFrom-Parent).
+        var libsDownloaded = await EnsureLibrariesInstalledAsync(versionJson.Libraries, install.LibrariesDirectory);
+        if (libsDownloaded > 0)
+            AccountDiagnostics.Log($"[LAUNCH] {libsDownloaded} fehlende Libraries heruntergeladen.");
 
         var javaPath = ResolveJavaPath(settings.JavaPath, versionJson.JavaVersion?.MajorVersion ?? 0);
         if (javaPath is null)
@@ -105,27 +95,26 @@ public sealed class GameLauncherService
 
         var classpath = BuildClasspath(install, versionId, versionJson, out var missingLibraries);
         if (missingLibraries > 0)
-            return Fail("Home.MissingLibraries", versionId, missingLibraries);
+            AccountDiagnostics.Log($"[LAUNCH] {missingLibraries} fehlende Libraries für {versionId} (Start wird trotzdem versucht).");
 
         var commandLine = BuildCommandLine(
             settings, install, versionId, versionJson, session, javaPath, nativesDirectory, classpath);
+
+        // Kulka Client Mod automatisch in den Profil-Mods-Ordner deployen (MC 1.21+ und 26.2+).
+        if (IsKulkaModCompatible(versionId))
+            EnsureKulkaModInstalled(Path.Combine(install.GameDirectory, "mods"), versionId);
+        else
+            RemoveAllKulkaMods(Path.Combine(install.GameDirectory, "mods"));
+
+        // Kulka theme config for the Minecraft mod
+        WriteKulkaThemeConfig(settings, install.GameDirectory);
 
         try
         {
             var javaw = Path.Combine(Path.GetDirectoryName(javaPath) ?? "", "javaw.exe");
             var executable = File.Exists(javaw) ? javaw : javaPath;
 
-            // ============================================================ LAUNCH DEBUG
-            AccountDiagnostics.Log("=== LAUNCH DEBUG ===");
-            AccountDiagnostics.Log($"  Java-Pfad:          {javaPath}");
-            AccountDiagnostics.Log($"  javaw.exe existiert: {File.Exists(javaw)}");
-            AccountDiagnostics.Log($"  Executable:         {executable}");
-            AccountDiagnostics.Log($"  WorkingDirectory:   {install.GameDirectory}");
-            AccountDiagnostics.Log($"  Classpath-Länge:    {classpath.Length}");
-            AccountDiagnostics.Log($"  Komplette Commandline:");
-            AccountDiagnostics.Log($"    {commandLine}");
-            AccountDiagnostics.Log("=== END LAUNCH DEBUG ===");
-            // ============================================================
+            AccountDiagnostics.Log($"[LAUNCH] Starte: {executable} in {install.GameDirectory}");
 
             var psi = new ProcessStartInfo
             {
@@ -137,11 +126,8 @@ public sealed class GameLauncherService
                 RedirectStandardError = true,
             };
 
-            // stdout/stderr asynchronously sammeln (verhindert Deadlock).
             var stdoutBuilder = new System.Text.StringBuilder();
             var stderrBuilder = new System.Text.StringBuilder();
-            psi.RedirectStandardOutput = true;
-            psi.RedirectStandardError = true;
 
             AccountDiagnostics.Log("[LAUNCH] Process.Start() wird aufgerufen...");
             var process = Process.Start(psi);
@@ -251,6 +237,9 @@ public sealed class GameLauncherService
     private static GameLaunchResult Fail(string messageKey, params object[] args)
         => new(false, messageKey, args);
 
+    private static string GetOfficialMinecraftDir()
+        => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), ".minecraft");
+
     // ------------------------------------------------------------ Installation
 
     private sealed record GameInstallation(
@@ -355,7 +344,7 @@ public sealed class GameLauncherService
         return null;
     }
 
-    private static VersionJson? LoadVersionJson(string versionDirectory, string versionId)
+    private static VersionJson? LoadVersionJson(string versionDirectory, string versionId, string gameRoot)
     {
         try
         {
@@ -381,15 +370,32 @@ public sealed class GameLauncherService
             // inheritsFrom auflösen: Eltern-Version laden und Libraries mergen.
             if (!string.IsNullOrEmpty(versionJson.InheritsFrom))
             {
-                var parentJson = LoadParentVersionJson(versionJson.InheritsFrom);
+                var parentJson = LoadParentVersionJson(versionJson.InheritsFrom, gameRoot);
                 if (parentJson is not null)
                 {
-                    // Eltern-Libraries zuerst, dann Fabric-Libs (keine Duplikate nach Name).
+                    // Eltern-Libraries zuerst, dann Fabric-Libs.
+                    // Deduplizierung nach group:artifact (ohne Version), damit z.B.
+                    // asm-9.6 (Vanilla) durch asm-9.10.1 (Fabric) ersetzt wird.
                     var mergedLibraries = new List<LibraryEntry>(parentJson.Libraries);
                     foreach (var childLib in versionJson.Libraries)
                     {
-                        if (!mergedLibraries.Any(l => l.Name == childLib.Name))
+                        var childArtifact = GetMavenArtifactId(childLib.Name);
+                        if (string.IsNullOrEmpty(childArtifact))
+                        {
                             mergedLibraries.Add(childLib);
+                            continue;
+                        }
+
+                        // Entferne Parent-Library mit gleichem group:artifact (ältere Version).
+                        for (var i = mergedLibraries.Count - 1; i >= 0; i--)
+                        {
+                            var existingArtifact = GetMavenArtifactId(mergedLibraries[i].Name);
+                            if (!string.IsNullOrEmpty(existingArtifact) && existingArtifact == childArtifact)
+                            {
+                                mergedLibraries.RemoveAt(i);
+                            }
+                        }
+                        mergedLibraries.Add(childLib);
                     }
                     versionJson.Libraries = mergedLibraries;
 
@@ -422,19 +428,27 @@ public sealed class GameLauncherService
         }
     }
 
-    /// <summary>Lädt die Eltern-Version-JSON für inheritsFrom aus .minecraft.</summary>
-    private static VersionJson? LoadParentVersionJson(string parentId)
+    /// <summary>Lädt die Eltern-Version-JSON für inheritsFrom (zuerst Game-Verzeichnis, dann .minecraft).</summary>
+    private static VersionJson? LoadParentVersionJson(string parentId, string gameRoot)
     {
-        var official = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            ".minecraft", "versions", parentId);
-        var jsonPath = Path.Combine(official, parentId + ".json");
+        // Zuerst im Game-Verzeichnis suchen (MeinLauncher/game versions).
+        var gameDirPath = Path.Combine(gameRoot, "versions", parentId, parentId + ".json");
+        if (File.Exists(gameDirPath))
+        {
+            var json = File.ReadAllText(gameDirPath);
+            return JsonSerializer.Deserialize<VersionJson>(json);
+        }
 
-        if (!File.Exists(jsonPath))
+        // Fallback: Offizielle Installation (.minecraft).
+        var officialPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            ".minecraft", "versions", parentId, parentId + ".json");
+
+        if (!File.Exists(officialPath))
             return null;
 
-        var json = File.ReadAllText(jsonPath);
-        return JsonSerializer.Deserialize<VersionJson>(json);
+        var officialJson = File.ReadAllText(officialPath);
+        return JsonSerializer.Deserialize<VersionJson>(officialJson);
     }
 
     // ------------------------------------------------------------ Java
@@ -519,7 +533,19 @@ public sealed class GameLauncherService
 
         var clientJar = Path.Combine(install.VersionDirectory, versionId + ".jar");
 
-        // Fallback: Client-JAR im .minecraft suchen (Fabric-Versionen haben kein eigenes .jar).
+        // Fallback: Client-JAR im Game-Verzeichnis oder .minecraft suchen
+        // (Fabric-Versionen haben kein eigenes .jar – die JAR kommt aus der Parent-Version).
+        if (!File.Exists(clientJar))
+        {
+            var gameRoot = Path.GetDirectoryName(install.LibrariesDirectory);
+            if (!string.IsNullOrEmpty(gameRoot))
+            {
+                var gameRootJar = Path.Combine(gameRoot, "versions", versionId, versionId + ".jar");
+                if (File.Exists(gameRootJar))
+                    clientJar = gameRootJar;
+            }
+        }
+
         if (!File.Exists(clientJar))
         {
             var officialJar = Path.Combine(
@@ -532,7 +558,10 @@ public sealed class GameLauncherService
         if (File.Exists(clientJar))
             paths.Add(clientJar);
         else
+        {
             missingLibraries++;
+            AccountDiagnostics.Log($"[CLASSPATH] Client-JAR fehlt: gesucht in {install.VersionDirectory}, GameRoot, .minecraft");
+        }
 
         foreach (var library in versionJson.Libraries)
         {
@@ -540,17 +569,57 @@ public sealed class GameLauncherService
                 continue;
 
             var downloads = library.Downloads;
+
+            // 1. Versuche downloads.artifact.path (Mojang-Format).
             if (downloads?.Artifact is { } artifact && !string.IsNullOrEmpty(artifact.Path))
             {
                 var path = Path.Combine(install.LibrariesDirectory, artifact.Path);
                 if (File.Exists(path))
+                {
                     paths.Add(path);
-                else
-                    missingLibraries++;
+                    continue;
+                }
+
+                // Fallback: .minecraft libraries
+                var officialArtifact = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                    ".minecraft", "libraries", artifact.Path);
+                if (File.Exists(officialArtifact))
+                {
+                    paths.Add(officialArtifact);
+                    continue;
+                }
+
+                // Fallback: Maven-Name-basierte Auflösung
+                if (!string.IsNullOrEmpty(library.Name))
+                {
+                    var mavenPath = MavenNameToPath(library.Name);
+                    if (!string.IsNullOrEmpty(mavenPath))
+                    {
+                        var mavenFull = Path.Combine(install.LibrariesDirectory, mavenPath);
+                        if (File.Exists(mavenFull))
+                        {
+                            paths.Add(mavenFull);
+                            continue;
+                        }
+
+                        var mavenOfficial = Path.Combine(
+                            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                            ".minecraft", "libraries", mavenPath);
+                        if (File.Exists(mavenOfficial))
+                        {
+                            paths.Add(mavenOfficial);
+                            continue;
+                        }
+                    }
+                }
+
+                missingLibraries++;
+                AccountDiagnostics.Log($"[CLASSPATH] Fehlt (artifact): {artifact.Path} | name={library.Name}");
                 continue;
             }
 
-            // Maven-Name-basierte Auflösung (für Fabric/Forge-Bibliotheken ohne downloads.artifact).
+            // 2. Maven-Name-basierte Auflösung (für Fabric/Forge-Bibliotheken ohne downloads.artifact).
             if (!string.IsNullOrEmpty(library.Name))
             {
                 var mavenPath = MavenNameToPath(library.Name);
@@ -572,18 +641,35 @@ public sealed class GameLauncherService
                         paths.Add(officialLib);
                         continue;
                     }
+
+                    // Still add it to classpath even if missing — let Java report the exact error.
+                    // Only count as missing for critical check if we have more than 1.
+                    AccountDiagnostics.Log($"[CLASSPATH] Fehlt (maven): {library.Name} → {mavenPath}");
                 }
             }
 
-            // Natives-Classifier für Windows: wird seit 1.17 als JAR mit auf den
-            // Classpath gelegt (LWJGL extrahiert die DLLs zur Laufzeit selbst).
+            // 3. Natives-Classifier für Windows.
             if (downloads?.Classifiers is not null && TryGetWindowsNative(downloads.Classifiers, out var nativePath))
             {
                 var path = Path.Combine(install.LibrariesDirectory, nativePath);
                 if (File.Exists(path))
+                {
                     paths.Add(path);
-                else
-                    missingLibraries++;
+                    continue;
+                }
+
+                // Fallback: .minecraft
+                var officialNative = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                    ".minecraft", "libraries", nativePath);
+                if (File.Exists(officialNative))
+                {
+                    paths.Add(officialNative);
+                    continue;
+                }
+
+                missingLibraries++;
+                AccountDiagnostics.Log($"[CLASSPATH] Fehlt (native): {nativePath}");
             }
         }
 
@@ -603,6 +689,18 @@ public sealed class GameLauncherService
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Extrahiert "group:artifact" aus einem Maven-Namen wie "org.ow2.asm:asm:9.6"
+    /// → "org.ow2.asm:asm". Gibt null zurück, wenn das Format nicht stimmt.
+    /// </summary>
+    private static string? GetMavenArtifactId(string? name)
+    {
+        if (string.IsNullOrEmpty(name))
+            return null;
+        var parts = name.Split(':');
+        return parts.Length >= 2 ? $"{parts[0]}:{parts[1]}" : null;
     }
 
     /// <summary>
@@ -801,6 +899,98 @@ public sealed class GameLauncherService
 
     // ------------------------------------------------------------ Maven
 
+    /// <summary>
+    /// Stellt sicher, dass alle fehlenden Libraries aus den Maven-Repositories
+    /// heruntergeladen werden. Prüft zuerst die lokale Bibliothek, dann .minecraft,
+    /// und lädt bei Bedarf von der Registry herunter.
+    /// </summary>
+    private static async Task<int> EnsureLibrariesInstalledAsync(List<LibraryEntry> libraries, string librariesDirectory)
+    {
+        var downloaded = 0;
+        Directory.CreateDirectory(librariesDirectory);
+
+        foreach (var library in libraries)
+        {
+            if (string.IsNullOrEmpty(library.Name))
+                continue;
+
+            // Nur Libraries ohne downloads.artifact (Maven-basiert) – andere haben eigene Pfade.
+            if (library.Downloads?.Artifact is { } art && !string.IsNullOrEmpty(art.Path))
+            {
+                var artPath = Path.Combine(librariesDirectory, art.Path);
+                if (File.Exists(artPath))
+                    continue;
+
+                // Von downloads.artifact.url herunterladen.
+                if (!string.IsNullOrEmpty(art.Url))
+                {
+                    try
+                    {
+                        var dir = Path.GetDirectoryName(artPath);
+                        if (dir is not null) Directory.CreateDirectory(dir);
+                        var data = await Http.GetByteArrayAsync(art.Url);
+                        await File.WriteAllBytesAsync(artPath, data);
+                        downloaded++;
+                    }
+                    catch { /* Best effort */ }
+                }
+                continue;
+            }
+
+            var mavenPath = MavenNameToPath(library.Name);
+            if (string.IsNullOrEmpty(mavenPath))
+                continue;
+
+            var fullPath = Path.Combine(librariesDirectory, mavenPath);
+            if (File.Exists(fullPath))
+                continue;
+
+            // Bereits in .minecraft?
+            var officialLib = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                ".minecraft", "libraries", mavenPath);
+            if (File.Exists(officialLib))
+                continue;
+
+            // Von Repository herunterladen.
+            var baseUrl = !string.IsNullOrEmpty(library.Url)
+                ? library.Url
+                : "https://libraries.minecraft.net/";
+
+            if (!baseUrl.EndsWith("/"))
+                baseUrl += "/";
+
+            var downloadUrl = baseUrl + mavenPath;
+            try
+            {
+                var dir = Path.GetDirectoryName(fullPath);
+                if (dir is not null) Directory.CreateDirectory(dir);
+                var data = await Http.GetByteArrayAsync(downloadUrl);
+                await File.WriteAllBytesAsync(fullPath, data);
+                downloaded++;
+            }
+            catch
+            {
+                // Fallback: Versuche Maven Central.
+                if (!baseUrl.Contains("repo1.maven.org"))
+                {
+                    try
+                    {
+                        var fallbackUrl = "https://repo1.maven.org/maven2/" + mavenPath;
+                        var dir = Path.GetDirectoryName(fullPath);
+                        if (dir is not null) Directory.CreateDirectory(dir);
+                        var data = await Http.GetByteArrayAsync(fallbackUrl);
+                        await File.WriteAllBytesAsync(fullPath, data);
+                        downloaded++;
+                    }
+                    catch { /* skip */ }
+                }
+            }
+        }
+
+        return downloaded;
+    }
+
     /// <summary>Konvertiert Maven-Koordinaten in einen Dateipfad.</summary>
     /// <example>"org.ow2.asm:asm:9.8" → "org/ow2/asm/asm/9.8/asm-9.8.jar"</example>
     private static string MavenNameToPath(string name)
@@ -848,5 +1038,190 @@ public sealed class GameLauncherService
     {
         foreach (var part in arguments.Split(' ', StringSplitOptions.RemoveEmptyEntries))
             yield return part.Trim();
+    }
+
+    // ------------------------------------------------------------ Kulka Mod Auto-Deploy
+
+    private const string KulkaModResourceName_26_2 = "kulka-client-1.0.0.jar";
+    private const string KulkaModFileName_26_2 = "kulka-client-1.0.0.jar";
+    private const string KulkaModResourceName_1_21 = "kulka-client-1.0.0-1.21.jar";
+    private const string KulkaModFileName_1_21 = "kulka-client-1.0.0-1.21.jar";
+
+    /// <summary>
+    /// Prüft ob die Kulka Client Mod mit der gegebenen MC-Version kompatibel ist.
+    /// Unterstützt MC 1.21.x und MC 26.2+.
+    /// </summary>
+    private static bool IsKulkaModCompatible(string versionId)
+    {
+        if (!int.TryParse(versionId.Split('.')[0], out var major))
+            return false;
+        // MC 1.21.x (major == 1, minor >= 21) or MC 26+ (new versioning)
+        if (major == 1)
+        {
+            if (versionId.Split('.').Length >= 2 && int.TryParse(versionId.Split('.')[1], out var minor))
+                return minor >= 21;
+            return false;
+        }
+        return major >= 26;
+    }
+
+    /// <summary>
+    /// Selects the appropriate Kulka mod resource and filename for the given MC version.
+    /// </summary>
+    private static (string ResourceName, string FileName) GetKulkaModForVersion(string versionId)
+    {
+        if (!int.TryParse(versionId.Split('.')[0], out var major))
+            return (KulkaModResourceName_26_2, KulkaModFileName_26_2);
+
+        if (major == 1)
+            return (KulkaModResourceName_1_21, KulkaModFileName_1_21);
+
+        return (KulkaModResourceName_26_2, KulkaModFileName_26_2);
+    }
+
+    /// <summary>
+    /// Entfernt ALLE Kulka Mods aus dem Mods-Ordner (sowohl 1.21 als auch 26.2).
+    /// </summary>
+    private static void RemoveAllKulkaMods(string modsDirectory)
+    {
+        foreach (var fileName in new[] { KulkaModFileName_26_2, KulkaModFileName_1_21 })
+        {
+            var path = Path.Combine(modsDirectory, fileName);
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+                AccountDiagnostics.Log($"[Kulka] Mod entfernt (incompatible mit dieser MC-Version): {path}");
+            }
+        }
+    }
+
+    private static void EnsureKulkaModInstalled(string modsDirectory, string versionId)
+    {
+        try
+        {
+            var (resourceName, fileName) = GetKulkaModForVersion(versionId);
+
+            Directory.CreateDirectory(modsDirectory);
+            var targetPath = Path.Combine(modsDirectory, fileName);
+
+            // Remove the OTHER version's JAR if present (can't have both)
+            var otherFileName = fileName == KulkaModFileName_26_2 ? KulkaModFileName_1_21 : KulkaModFileName_26_2;
+            var otherPath = Path.Combine(modsDirectory, otherFileName);
+            if (File.Exists(otherPath))
+            {
+                File.Delete(otherPath);
+                AccountDiagnostics.Log($"[Kulka] Alte Mod-Version entfernt: {otherPath}");
+            }
+
+            // Prüfen ob die Mod bereits vorhanden und aktuell ist (Größe als schneller Check).
+            using var stream = typeof(GameLauncherService).Assembly
+                .GetManifestResourceStream(resourceName);
+            if (stream is null)
+            {
+                AccountDiagnostics.Log($"[Kulka] EmbeddedResource '{resourceName}' nicht gefunden – Mod wird nicht deployed.");
+                return;
+            }
+
+            var resourceLength = stream.Length;
+
+            if (File.Exists(targetPath))
+            {
+                var fileInfo = new FileInfo(targetPath);
+                if (fileInfo.Length == resourceLength)
+                    return; // Bereits aktuell.
+
+                AccountDiagnostics.Log($"[Kulka] Mod veraltet (Launcher: {resourceLength}, Profil: {fileInfo.Length}) – aktualisiere.");
+            }
+            else
+            {
+                AccountDiagnostics.Log($"[Kulka] Mod fehlt im Profil – installiere {fileName} ({resourceLength} bytes).");
+            }
+
+            // JAR in den Mods-Ordner schreiben.
+            using var fileStream = File.Create(targetPath);
+            stream.CopyTo(fileStream);
+            stream.Position = 0; // Reset für den Fall, dass noch jemand liest.
+
+            AccountDiagnostics.Log($"[Kulka] Mod erfolgreich deployed: {targetPath}");
+        }
+        catch (Exception ex)
+        {
+            AccountDiagnostics.Log($"[Kulka] Fehler beim Deploy: {ex.Message}");
+        }
+    }
+
+    // ------------------------------------------------------------ Kulka Theme
+
+    /// <summary>
+    /// Writes kulka-theme.json to the game directory so the Minecraft mod can
+    /// read the launcher's design settings (background, accent, text colors).
+    /// </summary>
+    private static void WriteKulkaThemeConfig(LauncherSettings settings, string gameDirectory)
+    {
+        try
+        {
+            var dark = !string.Equals(settings.Theme, "Light", StringComparison.OrdinalIgnoreCase);
+
+            // Accent color from the same lookup used by ThemeManager
+            var accentHex = ThemeManager.Accents.TryGetValue(settings.Accent, out var accentColor)
+                ? $"#{accentColor.R:X2}{accentColor.G:X2}{accentColor.B:X2}"
+                : "#7BC043";
+
+            // Background colors (same logic as ThemeManager.Apply)
+            var bgWindow = dark ? "#14161A" : "#F2F4F7";
+            var bgCard = dark ? "#1B1E23" : "#FFFFFF";
+            var textPrimary = dark ? "#E8EAED" : "#1B1F24";
+            var textSecondary = dark ? "#9AA3AF" : "#5A6472";
+
+            // Transparency alpha (same as ThemeManager.Apply)
+            var alpha = settings.Transparency switch
+            {
+                "Strong" => 0.72,
+                "Light" => 0.88,
+                _ => 1.0,
+            };
+
+            // Background shapes config (from launcher settings)
+            var bg = settings.Background;
+            var bgConfig = bg?.Enabled == true ? new
+            {
+                enabled = true,
+                kinds = bg.Kinds.Select(k => k.ToString()).ToList(),
+                count = Math.Clamp(bg.Count, 1, 200),
+                density = Math.Clamp(bg.Density, 0.05, 1.0),
+                opacity = Math.Clamp(bg.Opacity, 0.0, 1.0),
+                size = Math.Clamp(bg.Size, 4.0, 120.0),
+                spacing = Math.Clamp(bg.Spacing, 0.0, 1.0),
+                placement = bg.Placement.ToString(),
+                color = string.IsNullOrWhiteSpace(bg.ColorHex) ? accentHex : bg.ColorHex,
+                animate = bg.Animate,
+                speed = Math.Clamp(bg.Speed, 0.0, 5.0),
+                intensity = Math.Clamp(bg.Intensity, 0.0, 1.0),
+                direction = bg.Direction.ToString(),
+                rotate = bg.Rotate,
+                rotationSpeed = Math.Clamp(bg.RotationSpeed, 0.0, 360.0),
+            } : null;
+
+            var themeJson = JsonSerializer.Serialize(new
+            {
+                theme = dark ? "dark" : "light",
+                accentName = settings.Accent,
+                accent = accentHex,
+                bgWindow = bgWindow,
+                bgCard = bgCard,
+                textPrimary = textPrimary,
+                textSecondary = textSecondary,
+                transparency = alpha,
+                background = bgConfig,
+            }, new JsonSerializerOptions { WriteIndented = true });
+
+            var themePath = Path.Combine(gameDirectory, "kulka-theme.json");
+            File.WriteAllText(themePath, themeJson);
+            AccountDiagnostics.Log($"[THEME] kulka-theme.json geschrieben: {themePath}");
+        }
+        catch (Exception ex)
+        {
+            AccountDiagnostics.Log($"[THEME] Fehler beim Schreiben von kulka-theme.json: {ex.Message}");
+        }
     }
 }

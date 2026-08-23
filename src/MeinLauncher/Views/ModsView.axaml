@@ -22,6 +22,9 @@
                 <Button Classes="tab" Classes.selected="{Binding ShowModrinth}"
                         Content="{Binding L.ModsSectionModrinth}"
                         Command="{Binding SelectSectionCommand}" CommandParameter="modrinth" />
+                <Button Classes="tab" Classes.selected="{Binding ShowCurseForge}"
+                        Content="{Binding L.ModsSectionCurseForge}"
+                        Command="{Binding SelectSectionCommand}" CommandParameter="curseforge" />
             </StackPanel>
 
             <WrapPanel ItemSpacing="14" VerticalAlignment="Center">
@@ -54,15 +57,28 @@
         <!-- Installierte Mods -->
         <Grid Grid.Row="2" IsVisible="{Binding ShowInstalled}">
             <Border Classes="card" Padding="10">
-                <Grid>
-                    <StackPanel IsVisible="{Binding IsInstalledEmpty}" Spacing="8" Margin="14">
+                <Grid RowDefinitions="Auto,Auto,*" RowSpacing="8">
+                    <!-- Keine Mods installiert (SearchBox + Liste weg) -->
+                    <StackPanel IsVisible="{Binding !HasAnyInstalledMods}" Spacing="8" Margin="14">
                         <TextBlock Text="{Binding L.ModsNoneFound}" FontSize="18" FontWeight="SemiBold" />
                         <TextBlock Classes="subtle" Text="{Binding L.ModsEmptyText}" TextWrapping="Wrap" />
                         <Button Classes="ghost" Content="{Binding L.ModsOpenFolder}"
                                 Click="OnOpenFolderClick" HorizontalAlignment="Left" />
                     </StackPanel>
 
-                    <ListBox Classes="mods" ItemsSource="{Binding InstalledMods}"
+                    <!-- SearchBox: IMMER sichtbar solange Mods vorhanden -->
+                    <TextBox Grid.Row="0" PlaceholderText="{Binding L.ModsSearchPlaceholder}"
+                             Text="{Binding InstalledModsSearchText}"
+                             IsVisible="{Binding HasAnyInstalledMods}"
+                             Margin="4,0,4,0" />
+
+                    <!-- Keine Suchtreffer (SearchBox bleibt sichtbar) -->
+                    <StackPanel Grid.Row="1" IsVisible="{Binding HasSearchNoResults}" Spacing="8" Margin="14">
+                        <TextBlock Text="{Binding L.ModsNoneFound}" FontSize="15" FontWeight="SemiBold" />
+                    </StackPanel>
+
+                    <!-- Mod-Liste (sichtbar wenn Suche Treffer liefert) -->
+                    <ListBox Classes="mods" Grid.Row="2" ItemsSource="{Binding InstalledMods}"
                              IsVisible="{Binding !IsInstalledEmpty}">
                         <ListBox.ItemTemplate>
                             <DataTemplate x:DataType="models:InstalledModItem">
@@ -203,6 +219,21 @@
                         </ListBox.ItemTemplate>
                     </ListBox>
                 </Grid>
+            </Border>
+        </Grid>
+
+        <!-- CurseForge (deaktiviert – wird später aktiviert) -->
+        <Grid Grid.Row="2" IsVisible="{Binding ShowCurseForge}">
+            <Border Classes="card" Padding="40">
+                <StackPanel Spacing="12" HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <TextBlock Text="&#x1F6AB;" FontSize="48" HorizontalAlignment="Center" />
+                    <TextBlock Text="{Binding L.ModsCurseForgeDisabled}"
+                               FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center"
+                               TextWrapping="Wrap" TextAlignment="Center" />
+                    <TextBlock Text="{Binding L.ModsCurseForgeDisabledHint}"
+                               FontSize="13" Classes="subtle" HorizontalAlignment="Center"
+                               TextWrapping="Wrap" TextAlignment="Center" MaxWidth="480" />
+                </StackPanel>
             </Border>
         </Grid>
     </Grid>

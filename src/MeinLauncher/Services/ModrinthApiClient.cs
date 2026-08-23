@@ -31,7 +31,7 @@ public sealed class ModrinthApiClient
     {
         _http = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
         // Modrinth verlangt einen aussagekräftigen User-Agent.
-        _http.DefaultRequestHeaders.UserAgent.ParseAdd("KulkaClient/0.1.0 (Kulka Client; personal use)");
+        _http.DefaultRequestHeaders.UserAgent.ParseAdd($"{AppVersion.UserAgent} (Kulka Client; personal use)");
         _http.DefaultRequestHeaders.Accept.ParseAdd("application/json");
     }
 

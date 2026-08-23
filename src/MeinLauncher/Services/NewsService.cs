@@ -6,6 +6,7 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 using Avalonia.Media.Imaging;
+using Avalonia.Threading;
 using MeinLauncher.ViewModels;
 
 namespace MeinLauncher.Services;
@@ -40,7 +41,7 @@ public sealed class NewsService
     public NewsService()
     {
         _http = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
-        _http.DefaultRequestHeaders.UserAgent.ParseAdd("KulkaClient/0.1.0 (News; personal use)");
+        _http.DefaultRequestHeaders.UserAgent.ParseAdd($"{AppVersion.UserAgent} (News; personal use)");
         _http.DefaultRequestHeaders.Accept.ParseAdd("application/atom+xml, application/xml, text/xml");
     }
 
@@ -73,7 +74,8 @@ public sealed class NewsService
         {
             var bytes = await ThumbnailHttp.GetByteArrayAsync(item.ThumbnailUrl).ConfigureAwait(false);
             using var stream = new MemoryStream(bytes);
-            item.Thumbnail = new Bitmap(stream);
+            var bmp = new Bitmap(stream);
+            Dispatcher.UIThread.Post(() => item.Thumbnail = bmp);
         }
         catch
         {

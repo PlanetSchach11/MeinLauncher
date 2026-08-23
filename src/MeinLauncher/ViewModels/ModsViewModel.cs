@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -27,6 +28,7 @@ public partial class ModsViewModel : ViewModelBase
     private readonly ModService _modService;
     private readonly ProfileService _profileService;
     private readonly ModrinthApiClient _api = new();
+    private CurseForgeApiClient? _cfApi;
     private readonly SemaphoreSlim _installLock = new(1, 1);
 
     private HashSet<string> _installedProjectIds = new(StringComparer.OrdinalIgnoreCase);
@@ -45,6 +47,16 @@ public partial class ModsViewModel : ViewModelBase
 
     public ObservableCollection<InstalledModItem> InstalledMods { get; } = [];
     public ObservableCollection<ModrinthModItem> BrowseResults { get; } = [];
+    public ObservableCollection<CurseForgeModItem> CurseForgeResults { get; } = [];
+
+    /// <summary>Backing field for filtering the installed mods list.</summary>
+    private List<InstalledModItem> _allInstalledItems = [];
+
+    /// <summary>Debounce cancellation: each keystroke cancels the previous pending filter.</summary>
+    private CancellationTokenSource? _filterCts;
+
+    [ObservableProperty]
+    public partial string InstalledModsSearchText { get; set; } = string.Empty;
 
     public ObservableCollection<ModLoaderItem> LoaderOptions { get; } =
     [
@@ -68,6 +80,9 @@ public partial class ModsViewModel : ViewModelBase
     public partial bool ShowModrinth { get; set; }
 
     [ObservableProperty]
+    public partial bool ShowCurseForge { get; set; }
+
+    [ObservableProperty]
     public partial bool IsBusy { get; set; }
 
     [ObservableProperty]
@@ -85,6 +100,7 @@ public partial class ModsViewModel : ViewModelBase
         _modService = modService;
         _profileService = profileService;
         SelectedLoaderOption = LoaderOptions.FirstOrDefault(o => o.Value == settings.Current.ModLoader) ?? LoaderOptions[0];
+        InitCurseForgeClient();
     }
 
     public string ModsDirectory => _settings.Current.ModsDirectory;
@@ -102,7 +118,92 @@ public partial class ModsViewModel : ViewModelBase
     public bool HasGameVersion => !string.IsNullOrWhiteSpace(_settings.Current.SelectedVersionId);
 
     public bool IsInstalledEmpty => InstalledMods.Count == 0;
+
+    /// <summary>
+    /// True wenn überhaupt installierte Mods vorhanden sind (unabhängig vom aktuellen Suchfilter).
+    /// Die SearchBox wird daran gekoppelt, nicht an IsInstalledEmpty.
+    /// </summary>
+    public bool HasAnyInstalledMods => _allInstalledItems.Count > 0;
+
+    /// <summary>
+    /// True wenn Mods vorhanden sind, die Suche aber 0 Treffer liefert.
+    /// Steuert die "Keine Mods gefunden"-Meldung unterhalb der SearchBox.
+    /// </summary>
+    public bool HasSearchNoResults => HasAnyInstalledMods && InstalledMods.Count == 0;
     public bool IsBrowseEmpty => BrowseResults.Count == 0;
+    public bool IsCurseForgeEmpty => CurseForgeResults.Count == 0;
+
+    /// <summary>True, wenn ein CurseForge-API-Schlüssel konfiguriert ist.</summary>
+    public bool IsCurseForgeConfigured => _cfApi is { IsConfigured: true };
+
+    partial void OnInstalledModsSearchTextChanged(string value)
+    {
+        // Debounce: cancel any pending filter, schedule a new one after a short delay.
+        // This prevents rapid CollectionChanged storms during fast typing.
+        _filterCts?.Cancel();
+        _filterCts = new CancellationTokenSource();
+        var ct = _filterCts.Token;
+        _ = DebounceFilterAsync(ct);
+    }
+
+    private async Task DebounceFilterAsync(CancellationToken ct)
+    {
+        try
+        {
+            await Task.Delay(80, ct);
+            if (!ct.IsCancellationRequested)
+                ApplyInstalledFilter();
+        }
+        catch (OperationCanceledException) { /* expected during fast typing */ }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[Kulka] DebounceFilter error: {ex}");
+        }
+    }
+
+    /// <summary>
+    /// Filters <see cref="InstalledMods"/> from <see cref="_allInstalledItems"/>
+    /// based on <see cref="InstalledModsSearchText"/>.
+    /// Wrapped in try/catch to prevent any exception from corrupting the
+    /// Avalonia binding system (which would break the page until restart).
+    /// </summary>
+    private void ApplyInstalledFilter()
+    {
+        try
+        {
+            var query = InstalledModsSearchText?.Trim() ?? string.Empty;
+            var snapshot = _allInstalledItems;
+
+            InstalledMods.Clear();
+            foreach (var item in snapshot)
+            {
+                if (query.Length > 0 &&
+                    !(item.DisplayName?.Contains(query, StringComparison.OrdinalIgnoreCase) == true) &&
+                    !(item.ModId?.Contains(query, StringComparison.OrdinalIgnoreCase) == true) &&
+                    !(item.Version?.Contains(query, StringComparison.OrdinalIgnoreCase) == true) &&
+                    !(item.FileName?.Contains(query, StringComparison.OrdinalIgnoreCase) == true))
+                    continue;
+
+                InstalledMods.Add(item);
+            }
+
+            OnPropertyChanged(nameof(IsInstalledEmpty));
+            OnPropertyChanged(nameof(HasSearchNoResults));
+            // Belt-and-suspenders: re-raise in case any subscriber missed it.
+            OnPropertyChanged(nameof(HasAnyInstalledMods));
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[Kulka] ApplyInstalledFilter error: {ex}");
+        }
+    }
+
+    /// <summary>Cancel any pending debounced filter (call on dispose / page close).</summary>
+    public void CancelPendingFilter()
+    {
+        _filterCts?.Cancel();
+        _filterCts = null;
+    }
 
     partial void OnSelectedLoaderOptionChanged(ModLoaderItem? value)
     {
@@ -123,6 +224,9 @@ public partial class ModsViewModel : ViewModelBase
     /// </summary>
     public void Refresh()
     {
+        // Cancel any stale debounced filter from a previous session.
+        CancelPendingFilter();
+
         SelectedLoaderOption = LoaderOptions.FirstOrDefault(o => o.Value == _settings.Current.ModLoader)
                                ?? LoaderOptions[0];
         OnPropertyChanged(nameof(ModsDirectory));
@@ -142,6 +246,7 @@ public partial class ModsViewModel : ViewModelBase
     {
         ShowInstalled = key == "installed";
         ShowModrinth = key == "modrinth";
+        ShowCurseForge = key == "curseforge";
 
         if (ShowInstalled)
         {
@@ -152,6 +257,10 @@ public partial class ModsViewModel : ViewModelBase
         else if (ShowModrinth && BrowseResults.Count == 0 && !IsBrowsing)
         {
             _ = BrowseModrinthAsync();
+        }
+        else if (ShowCurseForge && CurseForgeResults.Count == 0 && !IsBrowsing)
+        {
+            _ = BrowseCurseForgeAsync();
         }
     }
 
@@ -298,13 +407,18 @@ public partial class ModsViewModel : ViewModelBase
 
         UpdateInstalledMarks();
         OnPropertyChanged(nameof(IsInstalledEmpty));
+        OnPropertyChanged(nameof(HasSearchNoResults));
     }
 
     private void ReplaceInstalledList(List<InstalledModItem> items)
     {
-        InstalledMods.Clear();
-        foreach (var item in items)
-            InstalledMods.Add(item);
+        // Cancel any pending debounced filter – we're about to replace the master list.
+        _filterCts?.Cancel();
+        _filterCts = null;
+
+        _allInstalledItems = items;
+        OnPropertyChanged(nameof(HasAnyInstalledMods));
+        ApplyInstalledFilter();
     }
 
     /// <summary>
@@ -609,6 +723,7 @@ public partial class ModsViewModel : ViewModelBase
                 File.Delete(disabledVariant);
 
             InstalledMods.Remove(item);
+            _allInstalledItems.Remove(item);
             if (!string.IsNullOrEmpty(item.ProjectId))
                 _installedProjectIds.Remove(item.ProjectId);
             if (!string.IsNullOrEmpty(item.ModId))
@@ -616,6 +731,8 @@ public partial class ModsViewModel : ViewModelBase
 
             UpdateInstalledMarks();
             OnPropertyChanged(nameof(IsInstalledEmpty));
+            OnPropertyChanged(nameof(HasAnyInstalledMods));
+            OnPropertyChanged(nameof(HasSearchNoResults));
             StatusMessage = t("Mods.Uninstalled", item.DisplayName);
         }
         catch (Exception ex)
@@ -777,6 +894,212 @@ public partial class ModsViewModel : ViewModelBase
     private static bool IsKnownLoader(string category) => KnownLoaders.Contains(category);
 
     private string GetSelectedVersion() => _settings.Current.SelectedVersionId ?? "";
+
+    // ---------------------------------------------------------------- CurseForge
+
+    /// <summary>Initialisiert den CurseForge-Client, wenn ein API-Schlüssel konfiguriert ist.</summary>
+    private void InitCurseForgeClient()
+    {
+        var key = _settings.Current.CurseForgeApiKey?.Trim() ?? "";
+        _cfApi = string.IsNullOrWhiteSpace(key) ? null : new CurseForgeApiClient(key);
+        OnPropertyChanged(nameof(IsCurseForgeConfigured));
+    }
+
+    /// <summary>Aktualisiert den CurseForge-Client nach einer Änderung des API-Schlüssels.</summary>
+    public void RefreshCurseForgeClient() => InitCurseForgeClient();
+
+    [RelayCommand]
+    public async Task BrowseCurseForgeAsync()
+    {
+        if (IsBrowsing)
+            return;
+        if (!HasGameVersion)
+        {
+            StatusMessage = t("Mods.NoVersionSelected");
+            return;
+        }
+        if (_cfApi is not { IsConfigured: true })
+        {
+            StatusMessage = t("Mods.CurseForgeNoApiKey");
+            return;
+        }
+
+        IsBrowsing = true;
+        HasBrowsed = true;
+        StatusMessage = t("Mods.IsLoading");
+        try
+        {
+            var mods = await _cfApi.SearchAsync(
+                ModrinthQuery?.Trim() ?? "",
+                GetSelectedVersion(),
+                SelectedLoaderOption?.Value ?? "fabric",
+                limit: 30);
+
+            CurseForgeResults.Clear();
+            foreach (var mod in mods)
+                CurseForgeResults.Add(CreateCurseForgeItem(mod));
+
+            StatusMessage = CurseForgeResults.Count == 0 ? t("Mods.NoResults") : t("Mods.Count", CurseForgeResults.Count);
+            OnPropertyChanged(nameof(IsCurseForgeEmpty));
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = t("Mods.SearchError", ex.Message);
+        }
+        finally
+        {
+            IsBrowsing = false;
+        }
+    }
+
+    /// <summary>Lädt die beliebten Mods von CurseForge (Query wird dafür geleert).</summary>
+    [RelayCommand]
+    private async Task BrowseCurseForgePopularAsync()
+    {
+        ModrinthQuery = "";
+        await BrowseCurseForgeAsync();
+    }
+
+    [RelayCommand]
+    private async Task InstallFromCurseForgeAsync(CurseForgeModItem? item)
+    {
+        if (item is null || _cfApi is not { IsConfigured: true })
+            return;
+        if (!HasGameVersion)
+        {
+            StatusMessage = t("Mods.NoVersionSelected");
+            return;
+        }
+
+        await _installLock.WaitAsync();
+        try
+        {
+            if (item.IsInstalled)
+            {
+                StatusMessage = t("Mods.InstallAlready", item.Title);
+                return;
+            }
+
+            item.IsInstalling = true;
+            StatusMessage = t("Mods.Installing");
+
+            var loader = SelectedLoaderOption?.Value ?? "fabric";
+            var gameVersion = GetSelectedVersion();
+
+            var files = await _cfApi.GetModFilesAsync(item.CurseForgeModId, gameVersion, loader);
+            var file = files.Where(f => f.IsAvailable && !string.IsNullOrEmpty(f.DownloadUrl))
+                .OrderByDescending(f => f.GameVersions.Count).FirstOrDefault();
+            if (file is null || string.IsNullOrEmpty(file.DownloadUrl))
+            {
+                StatusMessage = t("Mods.InstallNoVersion", item.Title, gameVersion, loader);
+                return;
+            }
+
+            var modsDir = _settings.Current.ModsDirectory;
+            Directory.CreateDirectory(modsDir);
+            var destination = Path.Combine(modsDir, SanitizeFileName(file.FileName));
+
+            // Bereits vorhandene Datei überspringen.
+            if (File.Exists(destination) || File.Exists(destination + ".disabled"))
+            {
+                item.IsInstalled = true;
+                StatusMessage = t("Mods.InstallAlready", item.Title);
+                return;
+            }
+
+            await _cfApi.DownloadFileAsync(file.DownloadUrl, destination);
+
+            // Projekte in Dedup-Map eintragen (nach Name statt CurseForge-ID).
+            _installedModIds.Add(item.Slug);
+            item.IsInstalled = true;
+            item.HasUpdate = false;
+
+            StatusMessage = t("Mods.InstallSuccess", item.Title);
+
+            if (ShowInstalled)
+                await LoadInstalledAsync();
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = t("Mods.InstallError", ex.Message);
+        }
+        finally
+        {
+            item.IsInstalling = false;
+            _installLock.Release();
+        }
+    }
+
+    private CurseForgeModItem CreateCurseForgeItem(CurseForgeModDto dto)
+    {
+        var loaders = dto.LatestFiles
+            .Where(f => f.IsAvailable)
+            .SelectMany(f => f.GameVersions)
+            .Distinct()
+            .ToList();
+
+        // Loader aus den Kategorien ableiten
+        var loaderNames = dto.Categories
+            .Where(c => KnownLoaders.Contains(c.Slug.ToLowerInvariant()))
+            .Select(c => c.Slug.ToLowerInvariant())
+            .Distinct()
+            .ToList();
+
+        var item = new CurseForgeModItem
+        {
+            CurseForgeModId = dto.Id,
+            Slug = dto.Slug,
+            Title = dto.Name,
+            Author = dto.Authors.Count > 0 ? dto.Authors[0].Name : "",
+            Description = dto.Summary,
+            Downloads = dto.DownloadCount,
+            Loaders = loaderNames,
+            GameVersions = GetGameVersionsForLoader(dto.LatestFiles, loaderNames, GetSelectedVersion()),
+            IconUrl = dto.Logo?.ThumbnailUrl ?? "",
+        };
+        ApplyCurseForgeInstalledMark(item);
+        return item;
+    }
+
+    /// <summary>Extrahiert passende MC-Versionen aus den Dateien eines CurseForge-Projekts.</summary>
+    private List<string> GetGameVersionsForLoader(
+        List<CurseForgeFileDto> files,
+        List<string> loaderNames,
+        string selectedVersion)
+    {
+        var loader = SelectedLoaderOption?.Value ?? "fabric";
+        var cfLoaderType = CurseForgeLoaderType.FromString(loader);
+
+        var versions = files
+            .Where(f => f.IsAvailable)
+            .Where(f => cfLoaderType <= 0 || f.GameVersions.Any(gv =>
+                string.Equals(gv, loader, StringComparison.OrdinalIgnoreCase)))
+            .SelectMany(f => f.SortableGameVersions.Where(sv => sv.Contains('.')))
+            .Distinct()
+            .OrderByDescending(v => v, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (versions.Count == 0)
+            versions = files
+                .Where(f => f.IsAvailable)
+                .SelectMany(f => f.SortableGameVersions.Where(sv => sv.Contains('.')))
+                .Distinct()
+                .OrderByDescending(v => v, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+        return versions;
+    }
+
+    private void ApplyCurseForgeInstalledMark(CurseForgeModItem item)
+    {
+        item.IsInstalled = _installedModIds.Contains(item.Slug);
+    }
+
+    private void UpdateCurseForgeInstalledMarks()
+    {
+        foreach (var item in CurseForgeResults)
+            ApplyCurseForgeInstalledMark(item);
+    }
 
     private static string SanitizeFileName(string name)
     {

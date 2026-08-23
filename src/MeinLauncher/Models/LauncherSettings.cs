@@ -63,6 +63,12 @@ public sealed class LauncherSettings
     /// </summary>
     public string MicrosoftClientId { get; set; } = string.Empty;
 
+    /// <summary>
+    /// CurseForge-API-Schlüssel für die Modsuche. Leer = nicht konfiguriert.
+    /// Der CurseForge-Bereich in Mods zeigt dann einen Hinweis statt Suchergebnissen.
+    /// </summary>
+    public string CurseForgeApiKey { get; set; } = string.Empty;
+
     /// <summary>Alle Spielprofile. Das Standardprofil (ohne Eintrag) ist implizit enthalten.</summary>
     public System.Collections.Generic.List<LauncherProfile> Profiles { get; set; } = [];
 

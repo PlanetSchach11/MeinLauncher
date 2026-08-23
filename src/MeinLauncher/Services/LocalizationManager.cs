@@ -63,7 +63,12 @@ public sealed class LocalizationManager : INotifyPropertyChanged
 
     // ---------------------------------------------------------------- Branding
     public string BrandingSubtitle => Get("Branding.Subtitle");
-    public string BrandingPrototype => Get("Branding.Prototype");
+
+    // ---------------------------------------------------------------- Update
+    public string UpdateAvailable => Get("Update.Available");
+    public string UpdateInstall => Get("Update.Install");
+    public string UpdateLater => Get("Update.Later");
+    public string UpdateFailed => Get("Update.Failed");
 
     // ---------------------------------------------------------------- Home
     public string HomeWelcomeBack => Get("Home.WelcomeBack");
@@ -163,6 +168,11 @@ public sealed class LocalizationManager : INotifyPropertyChanged
     public string ModsError => Get("Mods.Error");
     public string ModsSectionInstalled => Get("Mods.SectionInstalled");
     public string ModsSectionModrinth => Get("Mods.SectionModrinth");
+    public string ModsSectionCurseForge => Get("Mods.SectionCurseForge");
+    public string ModsCurseForgeIntro => Get("Mods.CurseForgeIntro");
+    public string ModsCurseForgeNoApiKey => Get("Mods.CurseForgeNoApiKey");
+    public string ModsCurseForgeDisabled => Get("Mods.CurseForgeDisabled");
+    public string ModsCurseForgeDisabledHint => Get("Mods.CurseForgeDisabledHint");
     public string ModsGameVersionLabel => Get("Mods.GameVersionLabel");
     public string ModsLoaderLabel => Get("Mods.LoaderLabel");
     public string ModsLoaderFabric => Get("Mods.LoaderFabric");
@@ -278,6 +288,9 @@ public sealed class LocalizationManager : INotifyPropertyChanged
     public string SettingsModsLoaderHint => Get("Settings.ModsLoaderHint");
     public string SettingsModsFolder => Get("Settings.ModsFolder");
     public string SettingsModsFolderHint => Get("Settings.ModsFolderHint");
+    public string SettingsCurseForgeApiKey => Get("Settings.CurseForgeApiKey");
+    public string SettingsCurseForgeApiKeyHint => Get("Settings.CurseForgeApiKeyHint");
+    public string SettingsCurseForgeApiKeyInfo => Get("Settings.CurseForgeApiKeyInfo");
     public string SettingsUsernameHint => Get("Settings.UsernameHint");
 
     // ---------------------------------------------------------------- Hintergrund-Editor
@@ -335,7 +348,8 @@ public sealed class LocalizationManager : INotifyPropertyChanged
     private static readonly string[] AllProperties =
     [
         nameof(NavStart), nameof(NavProfile), nameof(NavSettings), nameof(NavNews),
-        nameof(BrandingSubtitle), nameof(BrandingPrototype),
+        nameof(BrandingSubtitle),
+        nameof(UpdateAvailable), nameof(UpdateInstall), nameof(UpdateLater), nameof(UpdateFailed),
         nameof(HomeWelcomeBack), nameof(HomeNoVersionSelected), nameof(HomePlay),
         nameof(HomeActiveProfile), nameof(HomeManageProfiles), nameof(HomeReady), nameof(HomeDirectLaunchHint),
         nameof(HomeStartingGame), nameof(HomeGameStarted), nameof(HomeNotSignedIn),
@@ -367,7 +381,9 @@ public sealed class LocalizationManager : INotifyPropertyChanged
         nameof(ModsEmptyText), nameof(ModsEmptyShort), nameof(ModsCount), nameof(ModsActive),
         nameof(ModsDisabled), nameof(ModsEnabled), nameof(ModsDisabledMsg),
         nameof(ModsError),
-        nameof(ModsSectionInstalled), nameof(ModsSectionModrinth),
+        nameof(ModsSectionInstalled), nameof(ModsSectionModrinth), nameof(ModsSectionCurseForge),
+        nameof(ModsCurseForgeIntro), nameof(ModsCurseForgeNoApiKey),
+        nameof(ModsCurseForgeDisabled), nameof(ModsCurseForgeDisabledHint),
         nameof(ModsGameVersionLabel), nameof(ModsLoaderLabel),
         nameof(ModsLoaderFabric), nameof(ModsLoaderForge), nameof(ModsLoaderNeoForge),
         nameof(ModsLoaderQuilt), nameof(ModsLoaderLiteLoader),
@@ -414,6 +430,7 @@ public sealed class LocalizationManager : INotifyPropertyChanged
         nameof(SettingsCategoryGeneral), nameof(SettingsCategoryGeneralSubtitle),
         nameof(SettingsModsLoader), nameof(SettingsModsLoaderHint),
         nameof(SettingsModsFolder), nameof(SettingsModsFolderHint),
+        nameof(SettingsCurseForgeApiKey), nameof(SettingsCurseForgeApiKeyHint), nameof(SettingsCurseForgeApiKeyInfo),
         nameof(SettingsUsernameHint),
         nameof(BackgroundEnabled), nameof(BackgroundEnabledHint),
         nameof(BackgroundImage), nameof(BackgroundImageHint),
@@ -446,7 +463,12 @@ public sealed class LocalizationManager : INotifyPropertyChanged
 
         // Branding
         ["Branding.Subtitle"] = new("Dein Minecraft Launcher", "Your Minecraft launcher"),
-        ["Branding.Prototype"] = new("Prototyp", "Prototype"),
+
+        // Update
+        ["Update.Available"] = new("Update verfügbar: v{0}", "Update available: v{0}"),
+        ["Update.Install"] = new("Aktualisieren", "Update"),
+        ["Update.Later"] = new("Später", "Later"),
+        ["Update.Failed"] = new("Update fehlgeschlagen: {0}", "Update failed: {0}"),
 
         // Home
         ["Home.WelcomeBack"] = new("Willkommen zurück", "Welcome back"),
@@ -600,6 +622,19 @@ public sealed class LocalizationManager : INotifyPropertyChanged
         ["Mods.Error"] = new("Fehler: {0}", "Error: {0}"),
         ["Mods.SectionInstalled"] = new("Installierte Mods", "Installed mods"),
         ["Mods.SectionModrinth"] = new("Modrinth", "Modrinth"),
+        ["Mods.SectionCurseForge"] = new("CurseForge", "CurseForge"),
+        ["Mods.CurseForgeIntro"] = new(
+            "CurseForge ist direkt eingebunden – echte Suchergebnisse und Downloads über die offizielle API.",
+            "CurseForge is embedded directly – real results and downloads via the official API."),
+        ["Mods.CurseForgeNoApiKey"] = new(
+            "Kein CurseForge-API-Schluessel konfiguriert. Bitte in den Einstellungen einen API-Schluessel eintragen.",
+            "No CurseForge API key configured. Please enter an API key in the settings."),
+        ["Mods.CurseForgeDisabled"] = new(
+            "CurseForge ist derzeit nicht verfuegbar.",
+            "CurseForge is currently not available."),
+        ["Mods.CurseForgeDisabledHint"] = new(
+            "Die CurseForge-Integration wird spaeter aktiviert. Du kannst weiterhin Modrinth nutzen.",
+            "The CurseForge integration will be activated later. You can continue using Modrinth."),
         ["Mods.GameVersionLabel"] = new("Minecraft-Version", "Minecraft version"),
         ["Mods.LoaderLabel"] = new("Loader", "Loader"),
         ["Mods.LoaderFabric"] = new("Fabric", "Fabric"),
@@ -771,6 +806,13 @@ public sealed class LocalizationManager : INotifyPropertyChanged
         ["Settings.ModsFolderHint"] = new(
             "Jedes Profil hat seinen eigenen Mods-Ordner – so bleiben die Mods der Profile getrennt.",
             "Each profile has its own mods folder – so the mods of your profiles stay separate."),
+        ["Settings.CurseForgeApiKey"] = new("CurseForge API-Schlüssel", "CurseForge API key"),
+        ["Settings.CurseForgeApiKeyHint"] = new(
+            "API-Schlüssel für die Modsuche auf CurseForge. Kostenloser $2a$-Schlüssel über die CurseForge-API-Website.",
+            "API key for searching mods on CurseForge. Free $2a$ key via the CurseForge API website."),
+        ["Settings.CurseForgeApiKeyInfo"] = new(
+            "Den Schluessel auf https://console.curseforge.com/ anfordern (API Tools -> API Key).",
+            "Request your key at https://console.curseforge.com/ (API Tools -> API Key)."),
         ["Settings.UsernameHint"] = new(
             "Der Spielername erscheint auf der Startseite und wird beim Spielstart verwendet.",
             "The player name appears on the home page and is used when launching the game."),

@@ -15,7 +15,7 @@ export default function Download() {
 
         <div className={`download-card card reveal${isVisible ? ' visible' : ''}`} style={{ transitionDelay: '150ms' }}>
           <div className="download-version">
-            v0.2.0
+            v1.0.0
           </div>
 
           <p style={{ color: 'var(--text-secondary)', marginBottom: '32px', lineHeight: '1.7' }}>
@@ -24,7 +24,7 @@ export default function Download() {
           </p>
 
           <a
-            href="/download/KulkaClient-v0.2.0-win-x64.zip"
+            href="/download/KulkaClient-v1.0.0-win-x64.zip"
             className="btn btn-primary"
             style={{ fontSize: '1.0625rem', padding: '16px 40px' }}
           >

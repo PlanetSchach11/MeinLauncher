@@ -111,6 +111,10 @@ public partial class SettingsViewModel : ViewModelBase
     [ObservableProperty]
     public partial string MicrosoftClientId { get; set; } = "";
 
+    /// <summary>CurseForge-API-Schlüssel für die Modsuche.</summary>
+    [ObservableProperty]
+    public partial string CurseForgeApiKey { get; set; } = "";
+
     /// <summary>Verständliche Statusmeldung zum Microsoft-Konto (Login, Fehler, angemeldet).</summary>
     [ObservableProperty]
     public partial string MicrosoftStatus { get; set; } = "";
@@ -217,6 +221,7 @@ public partial class SettingsViewModel : ViewModelBase
         SoundEnabled = s.SoundEnabled;
         SoundVolume = s.SoundVolume;
         MicrosoftClientId = s.MicrosoftClientId;
+        CurseForgeApiKey = s.CurseForgeApiKey;
 
         SelectedThemeItem = ThemeOptions.FirstOrDefault(o => o.Key == (s.Theme == "Light" ? "Settings.Light" : "Settings.Dark"));
         SelectedTransparencyItem = TransparencyOptions.FirstOrDefault(o => o.Key == s.Transparency switch
@@ -554,6 +559,7 @@ public partial class SettingsViewModel : ViewModelBase
         s.SoundEnabled = SoundEnabled;
         s.SoundVolume = SoundVolume;
         s.MicrosoftClientId = MicrosoftClientId?.Trim() ?? "";
+        s.CurseForgeApiKey = CurseForgeApiKey?.Trim() ?? "";
 
         // Java/RAM gehören zum aktiven Profil (Write-through), falls eines gewählt ist.
         if (s.ActiveProfile is { } profile)

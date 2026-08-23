@@ -42,7 +42,7 @@
                     <Border Width="48" Height="48" CornerRadius="12"
                             Background="{DynamicResource Accent}"
                             HorizontalAlignment="Left">
-                        <TextBlock Text="PL" FontSize="22" FontWeight="Bold"
+                        <TextBlock Text="K" FontSize="22" FontWeight="Bold"
                                    Foreground="{DynamicResource TextOnAccent}"
                                    HorizontalAlignment="Center" VerticalAlignment="Center" />
                     </Border>
@@ -56,8 +56,7 @@
 
                 <!-- Fußzeile -->
                 <StackPanel DockPanel.Dock="Bottom" Margin="20,12" Spacing="3">
-                    <TextBlock Text="Kulka Client v0.1.0" FontSize="12" Classes="subtle" />
-                    <TextBlock Text="{Binding L.BrandingPrototype}" FontSize="12" Classes="subtle" />
+                    <TextBlock Text="{Binding Version}" FontSize="12" Classes="subtle" />
                 </StackPanel>
 
                 <!-- Navigation (letztes Kind → füllt restlichen Platz) -->
@@ -88,6 +87,38 @@
         </Border>
 
         <!-- Inhalt -->
-        <ContentControl Grid.Column="1" Content="{Binding CurrentPage}" />
+        <Grid Grid.Column="1" RowDefinitions="Auto,*">
+            <!-- Update-Banner (oben, nur sichtbar wenn Update verfügbar) -->
+            <Border Grid.Row="0" Background="{DynamicResource Accent}" Padding="16,10,16,10"
+                    IsVisible="{Binding IsUpdateAvailable}">
+                <Grid ColumnDefinitions="*,Auto,Auto">
+                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <TextBlock Text="⬆" FontSize="14" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding UpdateText}"
+                                   Foreground="{DynamicResource TextOnAccent}" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding UpdateErrorMessage}"
+                                   Foreground="{DynamicResource TextOnAccent}" VerticalAlignment="Center"
+                                   IsVisible="{Binding IsUpdateError}" />
+                    </StackPanel>
+
+                    <Button Grid.Column="1" Content="{Binding L.UpdateInstall}" Margin="8,0,0,0"
+                            Command="{Binding DownloadUpdateCommand}"
+                            IsVisible="{Binding !IsDownloading}"
+                            Classes="accent" />
+
+                    <TextBlock Grid.Column="1" Foreground="{DynamicResource TextOnAccent}"
+                               VerticalAlignment="Center" Margin="8,0,0,0"
+                               IsVisible="{Binding IsDownloading}"
+                               Text="{Binding DownloadProgress, StringFormat={}{0:P0}}" />
+
+                    <Button Grid.Column="2" Content="{Binding L.UpdateLater}" Margin="8,0,0,0"
+                            Command="{Binding DismissUpdateCommand}"
+                            Foreground="{DynamicResource TextOnAccent}"
+                            IsVisible="{Binding !IsDownloading}" />
+                </Grid>
+            </Border>
+
+            <ContentControl Grid.Row="1" Content="{Binding CurrentPage}" />
+        </Grid>
     </Grid>
 </Window>
