@@ -6,18 +6,18 @@
 
 ; ------------------------------------------------------------------ General
 Name "Kulka Client"
-OutFile "C:\Users\lucac\Desktop\KulkaClient-v1.0.1-setup.exe"
+OutFile "C:\Users\lucac\Desktop\KulkaClient-v1.1.1-setup.exe"
 InstallDir "$LOCALAPPDATA\KulkaClient"
 InstallDirRegKey HKCU "Software\KulkaClient" "InstallDir"
 RequestExecutionLevel user
 Unicode True
 
 ; ------------------------------------------------------------------ Version
-VIProductVersion "1.0.1.0"
+VIProductVersion "1.1.1.0"
 VIAddVersionKey "ProductName" "Kulka Client"
 VIAddVersionKey "FileDescription" "Kulka Client Installer"
 VIAddVersionKey "LegalCopyright" "PlanetSchach"
-VIAddVersionKey "FileVersion" "1.0.1"
+VIAddVersionKey "FileVersion" "1.1.1"
 
 ; ------------------------------------------------------------------ Pages
 !define MUI_ABORTWARNING
@@ -56,7 +56,7 @@ Section "Install"
     WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\KulkaClient" \
         "InstallLocation" "$INSTDIR"
     WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\KulkaClient" \
-        "DisplayVersion" "1.0.1"
+        "DisplayVersion" "1.1.1"
     WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\KulkaClient" \
         "Publisher" "PlanetSchach"
     WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\KulkaClient" \

@@ -23,6 +23,20 @@
                                TextWrapping="Wrap" />
                 </StackPanel>
             </Border>
+
+            <!-- Deinstallation -->
+            <Border Classes="card" Padding="26" MinWidth="360" MaxWidth="430">
+                <StackPanel Spacing="10">
+                    <TextBlock Text="{Binding L.SettingsUninstallButton}" Classes="section" />
+
+                    <TextBlock Text="{Binding L.SettingsUninstallHint}" Classes="subtle" FontSize="12"
+                               TextWrapping="Wrap" />
+
+                    <Button Content="{Binding L.SettingsUninstallButton}"
+                            Command="{Binding UninstallCommand}"
+                            HorizontalAlignment="Left" Margin="0,6,0,0" />
+                </StackPanel>
+            </Border>
         </WrapPanel>
     </ScrollViewer>
 </UserControl>

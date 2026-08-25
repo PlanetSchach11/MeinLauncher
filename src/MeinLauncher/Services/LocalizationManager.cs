@@ -290,6 +290,12 @@ public sealed class LocalizationManager : INotifyPropertyChanged
     public string SettingsCurseForgeApiKeyHint => Get("Settings.CurseForgeApiKeyHint");
     public string SettingsCurseForgeApiKeyInfo => Get("Settings.CurseForgeApiKeyInfo");
     public string SettingsUsernameHint => Get("Settings.UsernameHint");
+    public string SettingsUninstallTitle => Get("Settings.UninstallTitle");
+    public string SettingsUninstallConfirm => Get("Settings.UninstallConfirm");
+    public string SettingsUninstallYes => Get("Settings.UninstallYes");
+    public string SettingsUninstallNo => Get("Settings.UninstallNo");
+    public string SettingsUninstallButton => Get("Settings.UninstallButton");
+    public string SettingsUninstallHint => Get("Settings.UninstallHint");
 
     // ---------------------------------------------------------------- Hintergrund-Editor
     public string BackgroundEnabled => Get("Background.Enabled");
@@ -429,6 +435,9 @@ public sealed class LocalizationManager : INotifyPropertyChanged
         nameof(SettingsModsFolder), nameof(SettingsModsFolderHint),
         nameof(SettingsCurseForgeApiKey), nameof(SettingsCurseForgeApiKeyHint), nameof(SettingsCurseForgeApiKeyInfo),
         nameof(SettingsUsernameHint),
+        nameof(SettingsUninstallTitle), nameof(SettingsUninstallConfirm),
+        nameof(SettingsUninstallYes), nameof(SettingsUninstallNo),
+        nameof(SettingsUninstallButton), nameof(SettingsUninstallHint),
         nameof(BackgroundEnabled), nameof(BackgroundEnabledHint),
         nameof(BackgroundImage), nameof(BackgroundImageHint),
         nameof(BackgroundPreview), nameof(BackgroundPreviewOff),
@@ -809,6 +818,18 @@ public sealed class LocalizationManager : INotifyPropertyChanged
         ["Settings.UsernameHint"] = new(
             "Der Spielername erscheint auf der Startseite und wird beim Spielstart verwendet.",
             "The player name appears on the home page and is used when launching the game."),
+
+        // Uninstall
+        ["Settings.UninstallTitle"] = new("Kulka Client deinstallieren", "Uninstall Kulka Client"),
+        ["Settings.UninstallConfirm"] = new(
+            "Möchtest du Kulka Client wirklich deinstallieren? Alle Einstellungen und Profile werden entfernt.",
+            "Do you really want to uninstall Kulka Client? All settings and profiles will be removed."),
+        ["Settings.UninstallYes"] = new("Deinstallieren", "Uninstall"),
+        ["Settings.UninstallNo"] = new("Abbrechen", "Cancel"),
+        ["Settings.UninstallButton"] = new("Kulka Client deinstallieren", "Uninstall Kulka Client"),
+        ["Settings.UninstallHint"] = new(
+            "Entfernt Kulka Client komplett von deinem Computer.",
+            "Completely removes Kulka Client from your computer."),
 
         // Hintergrund-Editor
         ["Background.Enabled"] = new("Hintergrund aktivieren", "Enable background"),

@@ -1,10 +1,12 @@
 using System;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
@@ -555,5 +557,96 @@ public partial class SettingsViewModel : ViewModelBase
 
         OnPropertyChanged(nameof(ModsFolderPath));
         StatusMessage = t("Settings.Saved");
+    }
+
+    // ---------------------------------------------------------------- Uninstall
+
+    [RelayCommand]
+    private async Task UninstallAsync()
+    {
+        var noBtn = new Button
+        {
+            Content = t("Settings.UninstallNo"),
+            HorizontalContentAlignment = Avalonia.Layout.HorizontalAlignment.Center,
+            MinWidth = 80,
+        };
+        var yesBtn = new Button
+        {
+            Content = t("Settings.UninstallYes"),
+            HorizontalContentAlignment = Avalonia.Layout.HorizontalAlignment.Center,
+            MinWidth = 80,
+        };
+        yesBtn.Classes.Add("primary");
+
+        var confirmWindow = new Window
+        {
+            Title = t("Settings.UninstallTitle"),
+            Width = 420,
+            Height = 200,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            CanResize = false,
+            ShowInTaskbar = false,
+            WindowDecorations = Avalonia.Controls.WindowDecorations.Full,
+            Content = new StackPanel
+            {
+                Margin = new Thickness(24),
+                Spacing = 16,
+                Children =
+                {
+                    new TextBlock
+                    {
+                        Text = t("Settings.UninstallConfirm"),
+                        TextWrapping = Avalonia.Media.TextWrapping.Wrap,
+                        FontSize = 14,
+                    },
+                    new StackPanel
+                    {
+                        Orientation = Avalonia.Layout.Orientation.Horizontal,
+                        Spacing = 10,
+                        HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right,
+                        Children = { noBtn, yesBtn },
+                    },
+                },
+            },
+        };
+
+        noBtn.Click += (_, _) => confirmWindow.Close(false);
+        yesBtn.Click += (_, _) => confirmWindow.Close(true);
+
+        var owner = Application.Current?.ApplicationLifetime is
+            Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop
+            ? desktop.MainWindow : null;
+
+        var result = owner is not null
+            ? await confirmWindow.ShowDialog<bool?>(owner)
+            : false;
+
+        if (result != true)
+            return;
+
+        // NSIS Uninstall.exe im Installationsverzeichnis starten
+        var uninstallPath = Path.Combine(AppContext.BaseDirectory, "Uninstall.exe");
+        if (File.Exists(uninstallPath))
+        {
+            AccountDiagnostics.Log($"Uninstall: Starte {uninstallPath}");
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = uninstallPath,
+                UseShellExecute = true,
+            });
+        }
+        else
+        {
+            // Fallback: Windows-eigene Deinstallation öffnen
+            AccountDiagnostics.Log("Uninstall: Uninstall.exe nicht gefunden, öffne Systemsteuerung");
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "ms-settings:appsfeatures",
+                UseShellExecute = true,
+            });
+        }
+
+        // Launcher beenden, damit der Uninstaller die Dateien entfernen kann
+        Environment.Exit(0);
     }
 }
