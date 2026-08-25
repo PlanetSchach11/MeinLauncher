@@ -617,18 +617,31 @@ public sealed class MicrosoftAuthService
     /// </summary>
     private static void OpenUrl(string url)
     {
-        // Method 1: Default browser via UseShellExecute (fastest, works on normal installs)
-        try
+        // Method 1: Find the actual browser via Registry and launch directly.
+        // UseShellExecute=true with a URL does NOT throw on modern Windows —
+        // it shows the ugly "You need a new app" dialog. So we must find the
+        // browser exe ourselves BEFORE trying UseShellExecute.
+        var browserPath = FindDefaultBrowserFromRegistry();
+        if (browserPath is not null)
         {
-            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
-            return;
+            try
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = browserPath,
+                    Arguments = url,
+                    UseShellExecute = false,
+                });
+                AccountDiagnostics.Log($"OpenUrl: Registry-Browser gestartet: {Path.GetFileName(browserPath)}");
+                return;
+            }
+            catch { /* registry path was wrong, try next method */ }
         }
-        catch { /* no default browser registered */ }
 
-        // Method 2: Find and launch a known browser directly
+        // Method 2: Try known browser paths
         string[] knownBrowserPaths =
         [
-            // Edge (always present on Windows 10/11)
+            // Edge (standard install)
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
                 @"Microsoft\Edge\Application\msedge.exe"),
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
@@ -643,9 +656,6 @@ public sealed class MicrosoftAuthService
                 @"Mozilla Firefox\firefox.exe"),
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
                 @"Mozilla Firefox\firefox.exe"),
-            // Fallback: iexplore
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
-                @"Internet Explorer\iexplore.exe"),
         ];
 
         foreach (var browser in knownBrowserPaths)
@@ -667,7 +677,72 @@ public sealed class MicrosoftAuthService
             }
         }
 
+        // Method 3: UseShellExecute (shows dialog if no handler, but may work on some systems)
+        try
+        {
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+            return;
+        }
+        catch { /* no handler */ }
+
         // Last resort: log the URL so user can copy it manually
         AccountDiagnostics.Log($"OpenUrl: Konnte keinen Browser öffnen. Bitte manuell öffnen: {url}");
+    }
+
+    /// <summary>
+    /// Reads the Windows registry to find the executable path of the default HTTP browser.
+    /// Returns the exe path or null if not found.
+    /// </summary>
+    private static string? FindDefaultBrowserFromRegistry()
+    {
+        try
+        {
+            // Step 1: Find the ProgId for HTTPS handler
+            using var userChoice = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(
+                @"Software\Microsoft\Windows\Shell\Associations\UrlAssociations\https\UserChoice");
+            var progId = userChoice?.GetValue("ProgID")?.ToString();
+            if (string.IsNullOrEmpty(progId))
+                return null;
+
+            // Step 2: Look up the "open" command for this ProgId
+            // Try HKCR first, then HKLM\SOFTWARE\Classes
+            string? command = null;
+            using (var crKey = Microsoft.Win32.Registry.ClassesRoot.OpenSubKey($@"{progId}\shell\open\command"))
+            {
+                command = crKey?.GetValue(null)?.ToString();
+            }
+
+            if (string.IsNullOrEmpty(command))
+            {
+                using var lmKey = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(
+                    $@"SOFTWARE\Classes\{progId}\shell\open\command");
+                command = lmKey?.GetValue(null)?.ToString();
+            }
+
+            if (string.IsNullOrEmpty(command))
+                return null;
+
+            // Step 3: Extract exe path from command string like "\"C:\...\msedge.exe\" \"%1\""
+            // or "C:\...\msedge.exe" --incognito "%1"
+            var exePath = command;
+            if (exePath.StartsWith('"'))
+            {
+                var endQuote = exePath.IndexOf('"', 1);
+                exePath = endQuote > 0 ? exePath[1..endQuote] : exePath.Trim('"');
+            }
+            else
+            {
+                // Take everything before the first space-or-dash that looks like an arg
+                var spaceIdx = exePath.IndexOf(" %", StringComparison.Ordinal);
+                if (spaceIdx < 0) spaceIdx = exePath.IndexOf(" -", StringComparison.Ordinal);
+                if (spaceIdx > 0) exePath = exePath[..spaceIdx];
+            }
+
+            return File.Exists(exePath) ? exePath : null;
+        }
+        catch
+        {
+            return null;
+        }
     }
 }
