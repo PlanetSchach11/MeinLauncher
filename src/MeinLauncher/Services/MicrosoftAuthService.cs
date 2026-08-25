@@ -612,47 +612,62 @@ public sealed class MicrosoftAuthService
     };
 
     /// <summary>
-    /// Opens a URL in the default browser with multiple fallback methods.
-    /// Works even on clean Windows installs where no default browser is registered.
+    /// Opens a URL in the browser with multiple fallback methods.
+    /// Handles clean Windows / Sandbox where no default browser protocol handler is registered.
     /// </summary>
     private static void OpenUrl(string url)
     {
-        // Method 1: UseShellExecute (works when default browser is set)
+        // Method 1: Default browser via UseShellExecute (fastest, works on normal installs)
         try
         {
             Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
             return;
         }
-        catch { /* no default browser or other issue */ }
+        catch { /* no default browser registered */ }
 
-        // Method 2: cmd /c start (most reliable on Windows)
-        try
-        {
-            Process.Start(new ProcessStartInfo
-            {
-                FileName = "cmd",
-                Arguments = $"/c start \"\" \"{url}\"",
-                UseShellExecute = false,
-                CreateNoWindow = true,
-            });
-            return;
-        }
-        catch { /* cmd not available */ }
+        // Method 2: Find and launch a known browser directly
+        string[] knownBrowserPaths =
+        [
+            // Edge (always present on Windows 10/11)
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
+                @"Microsoft\Edge\Application\msedge.exe"),
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+                @"Microsoft\Edge\Application\msedge.exe"),
+            // Chrome
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+                @"Google\Chrome\Application\chrome.exe"),
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
+                @"Google\Chrome\Application\chrome.exe"),
+            // Firefox
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+                @"Mozilla Firefox\firefox.exe"),
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
+                @"Mozilla Firefox\firefox.exe"),
+            // Fallback: iexplore
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
+                @"Internet Explorer\iexplore.exe"),
+        ];
 
-        // Method 3: explorer.exe with URL
-        try
+        foreach (var browser in knownBrowserPaths)
         {
-            Process.Start(new ProcessStartInfo
+            if (File.Exists(browser))
             {
-                FileName = "explorer",
-                Arguments = url,
-                UseShellExecute = false,
-            });
+                try
+                {
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = browser,
+                        Arguments = url,
+                        UseShellExecute = false,
+                    });
+                    AccountDiagnostics.Log($"OpenUrl: Direkt gestartet via {Path.GetFileName(browser)}");
+                    return;
+                }
+                catch { /* try next browser */ }
+            }
         }
-        catch
-        {
-            // Last resort: log the URL so user can open it manually
-            AccountDiagnostics.Log($"OpenUrl: Konnte Browser nicht öffnen. URL: {url}");
-        }
+
+        // Last resort: log the URL so user can copy it manually
+        AccountDiagnostics.Log($"OpenUrl: Konnte keinen Browser öffnen. Bitte manuell öffnen: {url}");
     }
 }
