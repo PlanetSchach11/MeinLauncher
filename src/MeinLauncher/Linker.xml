@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<linker>
+  <!-- Preserve all Views (Avalonia ViewLocator uses reflection to find them) -->
+  <assembly fullname="MeinLauncher" preserve="all">
+    <type fullname="MeinLauncher.Views.*" />
+    <type fullname="MeinLauncher.Views.Settings.*" />
+  </assembly>
+</linker>

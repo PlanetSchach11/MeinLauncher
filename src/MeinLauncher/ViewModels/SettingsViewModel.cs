@@ -107,10 +107,6 @@ public partial class SettingsViewModel : ViewModelBase
     [ObservableProperty]
     public partial bool IsJavaScanning { get; set; }
 
-    /// <summary>Microsoft-Application (client) ID für die Anmeldung mit dem Microsoft-Konto.</summary>
-    [ObservableProperty]
-    public partial string MicrosoftClientId { get; set; } = "";
-
     /// <summary>CurseForge-API-Schlüssel für die Modsuche.</summary>
     [ObservableProperty]
     public partial string CurseForgeApiKey { get; set; } = "";
@@ -220,7 +216,6 @@ public partial class SettingsViewModel : ViewModelBase
         MaxRamMb = s.MaxRamMb;
         SoundEnabled = s.SoundEnabled;
         SoundVolume = s.SoundVolume;
-        MicrosoftClientId = s.MicrosoftClientId;
         CurseForgeApiKey = s.CurseForgeApiKey;
 
         SelectedThemeItem = ThemeOptions.FirstOrDefault(o => o.Key == (s.Theme == "Light" ? "Settings.Light" : "Settings.Dark"));
@@ -406,18 +401,6 @@ public partial class SettingsViewModel : ViewModelBase
         if (IsMicrosoftBusy)
             return;
 
-        var clientId = MicrosoftClientId?.Trim() ?? "";
-        if (string.IsNullOrWhiteSpace(clientId))
-        {
-            MicrosoftStatus = t("Settings.MicrosoftLoginNoClientId");
-            return;
-        }
-
-        // Client-ID sofort sichern – auch wenn „Speichern“ nicht extra geklickt wurde.
-        // So steht sie beim nächsten App-Start für das Wiederherstellen bereit.
-        _settingsService.Current.MicrosoftClientId = clientId;
-        _settingsService.Save();
-
         IsMicrosoftBusy = true;
         var progress = new Progress<MicrosoftLoginStage>(stage =>
         {
@@ -431,7 +414,7 @@ public partial class SettingsViewModel : ViewModelBase
 
         try
         {
-            await _accountService.LoginAsync(clientId, progress);
+            await _accountService.LoginAsync(progress);
             // Status/Profil werden über SessionChanged von OnAccountSessionChanged gesetzt.
         }
         catch (OperationCanceledException ex)
@@ -458,10 +441,6 @@ public partial class SettingsViewModel : ViewModelBase
     /// </summary>
     private async Task RestoreSessionAsync()
     {
-        var clientId = _settingsService.Current.MicrosoftClientId?.Trim() ?? "";
-        if (string.IsNullOrWhiteSpace(clientId))
-            return;
-
         if (_accountService.CurrentSession is not null)
         {
             ApplySession(_accountService.CurrentSession);
@@ -471,7 +450,7 @@ public partial class SettingsViewModel : ViewModelBase
         MicrosoftStatus = t("Settings.MicrosoftLoginRestoring");
         try
         {
-            var session = await _accountService.RestoreAsync(clientId);
+            var session = await _accountService.RestoreAsync();
             if (session is null && _accountService.CurrentSession is null)
                 MicrosoftStatus = "";
             else
@@ -558,7 +537,6 @@ public partial class SettingsViewModel : ViewModelBase
         s.Language = SelectedLanguageItem?.Key == "Settings.English" ? "en" : "de";
         s.SoundEnabled = SoundEnabled;
         s.SoundVolume = SoundVolume;
-        s.MicrosoftClientId = MicrosoftClientId?.Trim() ?? "";
         s.CurseForgeApiKey = CurseForgeApiKey?.Trim() ?? "";
 
         // Java/RAM gehören zum aktiven Profil (Write-through), falls eines gewählt ist.

@@ -57,13 +57,6 @@ public sealed class LauncherSettings
     public string ModLoader { get; set; } = "fabric";
 
     /// <summary>
-    /// Microsoft-Application (client) ID für die Anmeldung mit dem Microsoft-Konto
-    /// (Authorization-Code + PKCE über http://localhost). Leer = nicht konfiguriert.
-    /// Wird bewusst NICHT fest im Quellcode eingetragen, sondern aus den Einstellungen geladen.
-    /// </summary>
-    public string MicrosoftClientId { get; set; } = string.Empty;
-
-    /// <summary>
     /// CurseForge-API-Schlüssel für die Modsuche. Leer = nicht konfiguriert.
     /// Der CurseForge-Bereich in Mods zeigt dann einen Hinweis statt Suchergebnissen.
     /// </summary>

@@ -87,11 +87,21 @@ public sealed class MicrosoftSession
 ///   2. Token-Austausch am Microsoft Identity Endpoint (consumers).
 ///   3. Kette XBL → XSTS → Minecraft-Spieler-Token → Profil (api.minecraftservices.com).
 ///
-/// Die Microsoft-Client-ID wird bewusst NICHT fest eingebaut, sondern aus den
-/// Launcher-Einstellungen übergeben.
+/// Die Microsoft-Client-ID ist fest im Quellcode hinterlegt und wird nicht in
+/// Einstellungen gespeichert. Damit der Login funktioniert, muss die Azure-
+/// App-Registrierung für „Accounts in any organizational directory and personal
+/// Microsoft accounts" (Unternehmens- + Privat-Konten) konfiguriert sein.
 /// </summary>
 public sealed class MicrosoftAuthService
 {
+    /// <summary>
+    /// Hardcoded Azure Application (client) ID. This is the app registration that
+    /// authenticates against Microsoft's consumers endpoint. The Azure app MUST be
+    /// configured to support "Accounts in any organizational directory and personal
+    /// Microsoft accounts" for the OAuth flow to work.
+    /// </summary>
+    internal const string MicrosoftClientId = "5b5d32fa-8a71-4a43-8384-7cdc76ad459d";
+
     private static readonly HttpClient Http = CreateHttpClient();
 
     private const string AuthorizeUrl = "https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize";
@@ -117,16 +127,11 @@ public sealed class MicrosoftAuthService
     /// Startet die Anmeldung im Browser und führt die komplette Kette bis zum
     /// Minecraft-Spieler-Token aus. Wirft bei Abbruch oder Fehler eine Exception.
     /// </summary>
-    /// <param name="clientId">Microsoft-Application (client) ID aus den Einstellungen.</param>
     /// <param name="progress">Optionaler Fortschritt (Browser öffnen → warten → Kette prüfen).</param>
     public async Task<MicrosoftSession> LoginAsync(
-        string clientId,
         IProgress<MicrosoftLoginStage>? progress = null,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(clientId))
-            throw new InvalidOperationException("Microsoft-Client-ID ist nicht konfiguriert.");
-
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         cts.CancelAfter(LoginTimeout);
 
@@ -142,7 +147,7 @@ public sealed class MicrosoftAuthService
         var state = Guid.NewGuid().ToString("N");
 
         var authUrl = AuthorizeUrl +
-            "?client_id=" + Uri.EscapeDataString(clientId) +
+            "?client_id=" + Uri.EscapeDataString(MicrosoftClientId) +
             "&response_type=code" +
             "&redirect_uri=" + Uri.EscapeDataString(redirectUri) +
             "&scope=" + Uri.EscapeDataString(Scope) +
@@ -173,7 +178,7 @@ public sealed class MicrosoftAuthService
         progress?.Report(MicrosoftLoginStage.CheckingMinecraft);
 
         var (msaAccessToken, refreshToken, expiresAt) =
-            await ExchangeCodeAsync(clientId, code, verifier, redirectUri, cts.Token);
+            await ExchangeCodeAsync(MicrosoftClientId, code, verifier, redirectUri, cts.Token);
 
         AccountDiagnostics.Log("LoginAsync: MSA-Token erhalten – XBL/XSTS/Minecraft-Kette.");
         return await BuildMinecraftSessionAsync(msaAccessToken, refreshToken, expiresAt, cts.Token);
@@ -185,12 +190,9 @@ public sealed class MicrosoftAuthService
     /// mit "invalid_grant", wenn das Refresh-Token nicht mehr gültig ist.
     /// </summary>
     public async Task<MicrosoftSession> RefreshAsync(
-        string clientId,
         string refreshToken,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(clientId))
-            throw new InvalidOperationException("Microsoft-Client-ID ist nicht konfiguriert.");
         if (string.IsNullOrWhiteSpace(refreshToken))
             throw new InvalidOperationException("Kein Refresh-Token vorhanden.");
 
@@ -198,7 +200,7 @@ public sealed class MicrosoftAuthService
 
         using var content = new FormUrlEncodedContent(new Dictionary<string, string>
         {
-            ["client_id"] = clientId,
+            ["client_id"] = MicrosoftClientId,
             ["grant_type"] = "refresh_token",
             ["refresh_token"] = refreshToken,
             ["scope"] = Scope,
@@ -595,7 +597,7 @@ public sealed class MicrosoftAuthService
     {
         "access_denied" => "Anmeldung im Browser abgebrochen.",
         "invalid_scope" => "Ungültiger Umfang.",
-        "invalid_client" => "Die Client-ID ist ungültig – bitte in den Einstellungen prüfen.",
+        "invalid_client" => "Die Microsoft-Anmeldung ist vorübergehend nicht verfügbar – bitte später erneut versuchen.",
         _ => error,
     };
 

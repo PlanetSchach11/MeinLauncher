@@ -16,12 +16,6 @@
 
                     <TextBlock Text="{Binding L.SettingsMicrosoftAccount}" Classes="section" />
 
-                    <TextBlock Text="{Binding L.SettingsMicrosoftClientId}" Classes="fieldlabel" Margin="0,6,0,0"
-                               TextWrapping="Wrap" />
-                    <TextBox Text="{Binding MicrosoftClientId}"
-                             PlaceholderText="{Binding L.SettingsMicrosoftClientIdPlaceholder}"
-                             MinWidth="240" IsEnabled="{Binding !IsMicrosoftBusy}" />
-
                     <TextBlock Text="{Binding L.SettingsMicrosoftAccountHint}" Classes="subtle" FontSize="12"
                                TextWrapping="Wrap" />
 

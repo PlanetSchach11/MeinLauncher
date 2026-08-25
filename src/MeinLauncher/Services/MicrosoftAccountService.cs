@@ -25,13 +25,12 @@ public sealed class MicrosoftAccountService
 
     /// <summary>Browser-Login inkl. kompletter Kette; speichert die Session danach sicher ab.</summary>
     public async Task<MicrosoftSession> LoginAsync(
-        string clientId,
         IProgress<MicrosoftLoginStage>? progress = null,
         CancellationToken cancellationToken = default)
     {
         AccountDiagnostics.Log("LoginAsync: Browser-Login gestartet.");
 
-        var session = await _auth.LoginAsync(clientId, progress, cancellationToken);
+        var session = await _auth.LoginAsync(progress, cancellationToken);
 
         AccountDiagnostics.Log(
             $"LoginAsync: Session erhalten ({session.MinecraftUsername}, " +
@@ -63,11 +62,11 @@ public sealed class MicrosoftAccountService
     /// von Microsoft abgelehnt (invalid_grant), wird die alte Session verworfen.
     /// Netzwerk-/Dienstfehler werden durchgereicht – die gespeicherte Session bleibt erhalten.
     /// </summary>
-    public async Task<MicrosoftSession?> RestoreAsync(string clientId)
+    public async Task<MicrosoftSession?> RestoreAsync()
     {
         // 1) Frisch angemeldete/geladene Session IMMER zuerst verwenden. Dadurch sieht
-        //    „Spielen“ einen soeben abgeschlossenen Login sofort – unabhängig davon, ob
-        //    die Client-ID oder die Session auf dem Datenträger bereits persistiert wurde.
+        //    „Spielen" einen soeben abgeschlossenen Login sofort – unabhängig davon, ob
+        //    die Session auf dem Datenträger bereits persistiert wurde.
         if (CurrentSession is { } current &&
             !current.IsExpired &&
             !string.IsNullOrEmpty(current.AccessToken))
@@ -77,8 +76,6 @@ public sealed class MicrosoftAccountService
                 $"Xuid: {(string.IsNullOrEmpty(current.Xuid) ? "leer" : "vorhanden")}).");
             return current;
         }
-
-        AccountDiagnostics.Log($"RestoreAsync: ClientId vorhanden: {!string.IsNullOrWhiteSpace(clientId)}");
 
         // 2) Gespeicherte Session vom Datenträger – sie ist auch ohne Client-ID nutzbar,
         //    solange das Token noch gültig ist.
@@ -98,13 +95,7 @@ public sealed class MicrosoftAccountService
             return stored;
         }
 
-        // 3) Erneuerung per Refresh-Token ist nur mit hinterlegter Client-ID möglich.
-        if (string.IsNullOrWhiteSpace(clientId))
-        {
-            AccountDiagnostics.Log("RestoreAsync: Erneuerung nötig, aber keine Client-ID vorhanden – Abbruch.");
-            return null;
-        }
-
+        // 3) Erneuerung per Refresh-Token – Client-ID ist fest im Code hinterlegt.
         if (string.IsNullOrWhiteSpace(stored.RefreshToken))
         {
             AccountDiagnostics.Log("RestoreAsync: Kein Refresh-Token vorhanden – Abbruch.");
@@ -114,7 +105,7 @@ public sealed class MicrosoftAccountService
         try
         {
             AccountDiagnostics.Log("RestoreAsync: Erneuere Session über Refresh-Token …");
-            var refreshed = await _auth.RefreshAsync(clientId, stored.RefreshToken, CancellationToken.None);
+            var refreshed = await _auth.RefreshAsync(stored.RefreshToken, CancellationToken.None);
             _store.Save(refreshed);
             SetCurrent(refreshed);
             AccountDiagnostics.Log(

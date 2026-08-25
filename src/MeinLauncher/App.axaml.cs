@@ -57,9 +57,8 @@ public partial class App : Application
     {
         try
         {
-            var clientId = settingsService.Current.MicrosoftClientId;
-            AccountDiagnostics.Log($"App-Start: ClientId vorhanden: {!string.IsNullOrWhiteSpace(clientId)}.");
-            var session = await accountService.RestoreAsync(clientId);
+            AccountDiagnostics.Log("App-Start: Stelle Session wieder her …");
+            var session = await accountService.RestoreAsync();
             AccountDiagnostics.Log(
                 session is null
                     ? "App-Start: keine Session wiederhergestellt."

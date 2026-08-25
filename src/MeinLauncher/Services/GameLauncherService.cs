@@ -65,7 +65,7 @@ public sealed class GameLauncherService
         if (install is null)
             return Fail("Home.VersionNotInstalled", versionId);
 
-        var session = await _accountService.RestoreAsync(settings.MicrosoftClientId);
+        var session = await _accountService.RestoreAsync();
         if (session is null)
         {
             AccountDiagnostics.Log("LaunchAsync: Keine Session vorhanden – Start abgebrochen (Home.NotSignedIn).");
@@ -740,7 +740,7 @@ public sealed class GameLauncherService
             ["${assets_index_name}"] = versionJson.AssetIndex?.Id ?? "legacy",
             ["${auth_uuid}"] = session.MinecraftUuid,
             ["${auth_access_token}"] = session.AccessToken,
-            ["${clientid}"] = settings.MicrosoftClientId,
+            ["${clientid}"] = MicrosoftAuthService.MicrosoftClientId,
             ["${auth_xuid}"] = session.Xuid ?? "",
             ["${version_type}"] = versionJson.Type,
             ["${natives_directory}"] = nativesDirectory,

@@ -220,8 +220,6 @@ public sealed class LocalizationManager : INotifyPropertyChanged
     public string SettingsUsername => Get("Settings.Username");
     public string SettingsUsernamePlaceholder => Get("Settings.UsernamePlaceholder");
     public string SettingsMicrosoftAccount => Get("Settings.MicrosoftAccount");
-    public string SettingsMicrosoftClientId => Get("Settings.MicrosoftClientId");
-    public string SettingsMicrosoftClientIdPlaceholder => Get("Settings.MicrosoftClientIdPlaceholder");
     public string SettingsMicrosoftAccountHint => Get("Settings.MicrosoftAccountHint");
     public string SettingsMicrosoftLoginButton => Get("Settings.MicrosoftLoginButton");
     public string SettingsMicrosoftLoginNoClientId => Get("Settings.MicrosoftLoginNoClientId");
@@ -399,8 +397,7 @@ public sealed class LocalizationManager : INotifyPropertyChanged
         nameof(ModsIsLoading), nameof(ModsGoToVersions),
         nameof(SettingsTitle), nameof(SettingsSubtitle), nameof(SettingsProfile),
         nameof(SettingsUsername), nameof(SettingsUsernamePlaceholder),
-        nameof(SettingsMicrosoftAccount), nameof(SettingsMicrosoftClientId),
-        nameof(SettingsMicrosoftClientIdPlaceholder), nameof(SettingsMicrosoftAccountHint),
+        nameof(SettingsMicrosoftAccount), nameof(SettingsMicrosoftAccountHint),
         nameof(SettingsMicrosoftLoginButton), nameof(SettingsMicrosoftLoginNoClientId),
         nameof(SettingsMicrosoftLoginOpeningBrowser), nameof(SettingsMicrosoftLoginWaiting),
         nameof(SettingsMicrosoftLoginChecking), nameof(SettingsMicrosoftLoggedInAs),
@@ -696,17 +693,13 @@ public sealed class LocalizationManager : INotifyPropertyChanged
         ["Settings.Username"] = new("Spielername", "Player name"),
         ["Settings.UsernamePlaceholder"] = new("Dein Minecraft-Spielername", "Your Minecraft player name"),
         ["Settings.MicrosoftAccount"] = new("Microsoft-Konto", "Microsoft account"),
-        ["Settings.MicrosoftClientId"] = new("Microsoft Client-ID", "Microsoft client ID"),
-        ["Settings.MicrosoftClientIdPlaceholder"] = new(
-            "Application (client) ID aus dem Azure-Portal",
-            "Application (client) ID from the Azure portal"),
         ["Settings.MicrosoftAccountHint"] = new(
-            "Diese ID wird für die Anmeldung mit dem Microsoft-Konto verwendet (Authorization-Code + PKCE über http://localhost). Die Anmeldung läuft im Browser – es werden keine Passwörter oder Tokens aus dem offiziellen Launcher ausgelesen.",
-            "This ID is used to sign in with your Microsoft account (authorization code + PKCE via http://localhost). Sign-in happens in your browser – no passwords or tokens are read from the official launcher."),
+            "Melde dich mit deinem Microsoft-Konto an, um Minecraft zu starten. Die Anmeldung läuft über den Browser (Authorization-Code + PKCE) – es werden keine Passwörter oder Tokens aus dem offiziellen Launcher ausgelesen.",
+            "Sign in with your Microsoft account to launch Minecraft. Sign-in happens via browser (authorization code + PKCE) – no passwords or tokens are read from the official launcher."),
         ["Settings.MicrosoftLoginButton"] = new("Mit Microsoft anmelden", "Sign in with Microsoft"),
         ["Settings.MicrosoftLoginNoClientId"] = new(
-            "Bitte zuerst eine Microsoft Client-ID in den Einstellungen eintragen und speichern.",
-            "Please enter and save a Microsoft client ID in the settings first."),
+            "Die Microsoft-Anmeldung ist vorübergehend nicht verfügbar.",
+            "Microsoft sign-in is temporarily unavailable."),
         ["Settings.MicrosoftLoginOpeningBrowser"] = new(
             "Browser wird geöffnet …", "Opening browser …"),
         ["Settings.MicrosoftLoginWaiting"] = new(
