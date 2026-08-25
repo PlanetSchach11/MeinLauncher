@@ -158,7 +158,7 @@ public sealed class MicrosoftAuthService
             "&state=" + state;
 
         progress?.Report(MicrosoftLoginStage.OpeningBrowser);
-        Process.Start(new ProcessStartInfo(authUrl) { UseShellExecute = true });
+        OpenUrl(authUrl);
         progress?.Report(MicrosoftLoginStage.WaitingForBrowser);
         AccountDiagnostics.Log("LoginAsync: Browser geöffnet, warte auf Redirect …");
 
@@ -610,4 +610,49 @@ public sealed class MicrosoftAuthService
         "2148916238" => "Es gab zu viele Anmeldeversuche – bitte später erneut versuchen (0x8015DC10).",
         _ => xErr,
     };
+
+    /// <summary>
+    /// Opens a URL in the default browser with multiple fallback methods.
+    /// Works even on clean Windows installs where no default browser is registered.
+    /// </summary>
+    private static void OpenUrl(string url)
+    {
+        // Method 1: UseShellExecute (works when default browser is set)
+        try
+        {
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+            return;
+        }
+        catch { /* no default browser or other issue */ }
+
+        // Method 2: cmd /c start (most reliable on Windows)
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "cmd",
+                Arguments = $"/c start \"\" \"{url}\"",
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            });
+            return;
+        }
+        catch { /* cmd not available */ }
+
+        // Method 3: explorer.exe with URL
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "explorer",
+                Arguments = url,
+                UseShellExecute = false,
+            });
+        }
+        catch
+        {
+            // Last resort: log the URL so user can open it manually
+            AccountDiagnostics.Log($"OpenUrl: Konnte Browser nicht öffnen. URL: {url}");
+        }
+    }
 }
